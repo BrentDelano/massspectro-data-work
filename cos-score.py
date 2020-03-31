@@ -1,3 +1,4 @@
-# cos-score.py
+import numpy as np
+import pyteomics
 
-print('test')
+pyteomics.mgf.read('HMDB.mgf')
