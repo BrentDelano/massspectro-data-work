@@ -7,9 +7,9 @@ intensities = []
 
 def main():
 	with mgf.MGF('HMDB.mgf') as reader:
-	    for i, spectrum in enumerate(reader, start=1):
-	    	mzs.append(spectrum['m/z array'])
-	    	intensities.append(spectrum['intensity array'])	
+	    for spectrum in reader:
+	    	mzs.append(spectrum['m/z array'].tolist())
+	    	intensities.append(spectrum['intensity array'].tolist())	
 	    print(intensities)
 
 if __name__ == "__main__":
