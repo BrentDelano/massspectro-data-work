@@ -2,16 +2,25 @@ import pyteomics
 import numpy as np
 from pyteomics import mgf
 
-# 2D lists to hold m/z ratios and intensities
-mzs = []
-intensities = []
+# 3D list of the spectra, holding the m/z ratios and intensities
 spectra = []
 
 def main():
+	# sort through HMDB file and place data into spectra list
 	with mgf.MGF('HMDB.mgf') as reader:
-	    for i, spectrum in enumerate(reader,start=0):
+	    for spectrum in reader:
 	   		spectra.append([spectrum['intensity array'].tolist(), spectrum['m/z array'].tolist()])
-	print(spectra[0])
+
+	# compare all spectra to each other; place cosine scores into an nxn array
+	cosScores = []
+	for i in spectra:
+		temp = []
+		for j in spectra:
+			if (i == j):
+				temp.append(1)
+			else:
+				temp.append(0)
+		cosScores.append(temp)
 
 if __name__ == "__main__":
     main()
