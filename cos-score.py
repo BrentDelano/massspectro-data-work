@@ -2,7 +2,6 @@ import pyteomics
 import numpy as np
 from pyteomics import mgf
 import sys
-sys.path.insert(1, '/Users/brent/Desktop/cosScore/GNPS_Workflows')
 sys.path.insert(1, '/Users/brent/Desktop/cosScore/GNPS_Workflows/shared_code')
 import spectrum_alignment
 
