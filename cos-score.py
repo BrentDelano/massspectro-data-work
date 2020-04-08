@@ -1,59 +1,67 @@
 # Written by Brent Delano
 # 4/3/2020
 # Takes in an .mgf file and creates a text file holding an nxn matrix of all possible cosine scores within the ms/ms data
-# Uses UCSD - Center for Computational Mass Spectrometry GNPS_Workflows on Github https://github.com/CCMS-UCSD
+# Uses pyteomics api (https://pyteomics.readthedocs.io/en/latest/) for reading .mgf files
+# Uses UCSD - Center for Computational Mass Spectrometry GNPS_Workflows on Github https://github.com/CCMS-UCSD to calculate cosine scores
 
 import pyteomics
 from pyteomics import mgf
 import sys
-sys.path.insert(1, '/Users/brent/Desktop/cosScore/GNPS_Workflows/shared_code')
+sys.path.insert(1, './GNPS_Workflows/shared_code')
 import spectrum_alignment
 
-# Lists to hold the spectra (m/z ratios and intensities) and masses
-spectra = []
-masses = []
-
-# compare all spectra to each other; place cosine scores into an nxn array
-cosScores = []
-
-# Text file that cosine score data will be printed to
-cosScoreTxt = open('cos-score-data', 'w')
 
 # sort through HMDB file and place data into spectra list
-with mgf.MGF('HMDB.mgf') as reader:
-	for spectrum in reader:
-		masses.append(spectrum['params']['pepmass'][0])
-		temp = []
-		for i in range(len(spectrum['m/z array'])):
-			temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
-		spectra.append(temp)
+# returns a spectra array with m/z ratios and intensities as a list of lists (different from binning-ms.py)
+def read_mgf_cosine(mgfFile):
+	spectra = []
+	masses = []
+	with mgf.MGF(mgfFile) as reader:
+		for spectrum in reader:
+			masses.append(spectrum['params']['pepmass'][0])
+			temp = []
+			for i in range(len(spectrum['m/z array'])):
+				temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
+			spectra.append(temp)
+	return spectra, masses
 
-# calculate first nxn cosine scores
-# cosScoreTxt.write('[')
-# for i in range(10):
-# 	cosScoreTxt.write('[')
-# 	for j in range(10):
-# 		if (j > 0 and j < 10):
-# 			cosScoreTxt.write(', ')
-# 		if (i == j):
-# 			cosScoreTxt.write('1.0')
-# 		else:
-# 			x = spectrum_alignment.score_alignment(spectra[i], spectra[j], masses[i], masses[j], 0.02)[0]
-# 			cosScoreTxt.write(str(x))
-# 	cosScoreTxt.write(']')
-# cosScoreTxt.write(']')
 
-# calculate all cosine scores
-cosScoreTxt.write('[')
-for i,rSpec in enumerate(spectra):
+# calculates all cosine scores and creates a .txt file titled 'cos_score_data' with the scores
+# the .txt file has a nxn array with each row representing a spectra and each column also representing a spectra
+#	therefore, [i, j] is the cosine score between spectra i and spectra j
+def calc_cos_scores(mgfFile):
+	mgf_contents = read_mgf(mgfFile)
+	spectra, masses = mgf_contents[0], mgf_contents[1]
+
+	cosScoreTxt = open('cos_score_data', 'w')
+	cosScores = []
 	cosScoreTxt.write('[')
-	for j,cSpec in enumerate(spectra):
-		if (j > 0 and j < len(spectra)):
-			cosScoreTxt.write(', ')
-		if (i == j):
-			cosScoreTxt.write('1.0')
-		else:
-			x = spectrum_alignment.score_alignment(rSpec, cSpec, masses[i], masses[j], 0.02)[0]
-			cosScoreTxt.write(str(x))
+	for i,rSpec in enumerate(spectra):
+		cosScoreTxt.write('[')
+		for j,cSpec in enumerate(spectra):
+			if (j > 0 and j < len(spectra)):
+				cosScoreTxt.write(', ')
+			if (i == j):
+				cosScoreTxt.write('1.0')
+			else:
+				x = spectrum_alignment.score_alignment(rSpec, cSpec, masses[i], masses[j], 0.02)[0]
+				cosScoreTxt.write(str(x))
+		cosScoreTxt.write(']')
 	cosScoreTxt.write(']')
-cosScoreTxt.write(']')
+	cosScoreTxt.close()
+
+	# # calculate first nxn cosine scores
+	# cosScoreTxt.write('[')
+	# for i in range(10):
+	# 	cosScoreTxt.write('[')
+	# 	for j in range(10):
+	# 		if (j > 0 and j < 10):
+	# 			cosScoreTxt.write(', ')
+	# 		if (i == j):
+	# 			cosScoreTxt.write('1.0')
+	# 		else:
+	# 			x = spectrum_alignment.score_alignment(spectra[i], spectra[j], masses[i], masses[j], 0.02)[0]
+	# 			cosScoreTxt.write(str(x))
+	# 	cosScoreTxt.write(']')
+	# cosScoreTxt.write(']')
+	# cosScoreTxt.close()

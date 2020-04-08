@@ -7,6 +7,7 @@
 #	if not, then it will be 0
 # Able to add Gaussian noise to the dataset in order to visualize the effect on bins
 # Plots histogram of m/z spectra in bins with relative frequency
+# Uses pyteomics api (https://pyteomics.readthedocs.io/en/latest/) for reading .mgf files
 # Uses https://www.python-course.eu/pandas_python_binning.php for binning functions
 # Uses https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html for plots
 
@@ -16,41 +17,13 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-def main():
-	# reads mgf file and initializes lists of m/z ratios and respective intensities
-	mzs = read_mgf('HMBD.mgf')[0]
-	intensities = read_mgf('HMBD.mgf')[1] 
-
-	# adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
-	mzs = create_gaussian_noise(mzs)
-
-	# creates bins
-	minmz = 0
-	maxmz = 0
-	for i,mz in enumerate(mzs):
-		if (i == 0):
-			minmz = mz[0]
-			maxmz = mz[0]
-		for m in mz:
-			if (m < minmz):
-				minmz = m
-			if (m > maxmz):
-				maxmz = m
-	bins = create_bins(lower_bound=math.floor(minmz), width=1, quantity=math.ceil(maxmz-minmz))
-
-	# prints peaks matrix
-	print(create_peak_matrix(mzs, intensities, bins))
-
-	# graphs histogram
-	graph(mzs, len(bins), [minmz,maxmz])
-
 
 # takes in a .mgf file and reads it
-# outputs a list holding the m/z ratios and a list holding the respective intensities
-def read_mgf(mgfFile):
+# outputs 2 lists of lists: one holding the m/z ratios and a list holding the respective intensities
+def read_mgf_binning(mgfFile):
 	mzs = []
 	intensities = []
-	with mgf.MGF('HMDB.mgf') as reader:
+	with mgf.MGF(mgfFile) as reader:
 		for spectrum in reader:
 			mzs.append(spectrum['m/z array'].tolist())
 			intensities.append(spectrum['intensity array'].tolist())
@@ -58,12 +31,18 @@ def read_mgf(mgfFile):
 
 
 # from https://www.python-course.eu/pandas_python_binning.php
-# create bins of equal sizes based off of given parameters
-def create_bins(lower_bound, width, quantity):
-    bins = []
-    for low in range(lower_bound, lower_bound + quantity*width + 1, width):
-        bins.append((low, low+width))
-    return bins
+# takes in m/z ratios as a list of lists, and creates a list of lists of bins of size 1
+def create_bins(mzs):
+	minMax = findMinMax(mzs)
+	minmz, maxmz = minMax[0], minMax[1]
+	lower_bound = math.floor(minmz)
+	width = 1
+	quantity = math.ceil(maxmz-minmz)
+	
+	bins = []
+	for low in range(lower_bound, lower_bound + quantity*width + 1, width):
+		bins.append((low, low + width))
+	return bins
 
 
 # from https://www.python-course.eu/pandas_python_binning.php
@@ -124,12 +103,14 @@ def create_gaussian_noise(mzs):
 # Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
 # 	m/z data on a histogram; 
 # Also plots the probability density function of the distribution (in red)
-def graph(mzs, numBins, r):
+# Creates bins of similar dimension to create_bins()
+def graph(mzs, numBins):
 	mzs_od = []
 	for mz in mzs:
 		for m in mz:
 			mzs_od.append(m)
 
+	r = findMinMax(mzs)	
 	mu = np.mean(mzs_od)
 	sigma = np.std(mzs_od)
 
@@ -140,5 +121,37 @@ def graph(mzs, numBins, r):
 	plt.show()
 
 
-if __name__ == "__main__":
-    main()
+# given a list of lists of m/z data, it will return the minimum and maximum m/z values in the lists
+def findMinMax(mzs):
+	minmz = 0
+	maxmz = 0
+	for i,mz in enumerate(mzs):
+		if (i == 0):
+			minmz = mz[0]
+			maxmz = mz[0]
+		for m in mz:
+			if (m < minmz):
+				minmz = m
+			if (m > maxmz):
+				maxmz = m
+	return minmz, maxmz
+
+
+# # for testing
+# def main():
+# 	# reads mgf file and initializes lists of m/z ratios and respective intensities
+# 	mgf_contents = read_mgf_binning('./data/HMDB.mgf')
+# 	mzs = mgf_contents[0]
+# 	intensities = mgf_contents[1] 
+
+# 	# adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
+# 	# mzs = create_gaussian_noise(mzs)
+
+# 	# creates bins
+# 	bins = create_bins(mzs)
+
+# 	# prints peaks matrix
+# 	print(create_peak_matrix(mzs, intensities, bins))
+
+# 	# graphs histogram
+# 	graph(mzs, len(bins))
