@@ -18,31 +18,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
-# outputs 2 lists of lists: one holding the m/z ratios and a list holding the respective intensities
+# outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
+#	the third a list of identifiers
 def read_mgf_binning(mgfFile):
 	mzs = []
 	intensities = []
+	identifiers = []
 	if (isinstance(mgfFile, list)):
 		for mgfs_n in mgfFile:
 			with mgf.MGF(mgfs_n) as reader:
-				for spectrum in reader:
+				for j, spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
+					identifiers.append(mgfs_n + '_' + str(j+1))
 	else:
 		with mgf.MGF(mgfFile) as reader:
-			for spectrum in reader:
+			for j, spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
-	return mzs, intensities
+				identifiers.append([mgfFile + '_' + str(j+1)])
+	return mzs, intensities, identifiers
 
 
 # from https://www.python-course.eu/pandas_python_binning.php
-# takes in m/z ratios as a list of lists, and creates a list of lists of bins of size 1
-def create_bins(mzs):
+# takes in m/z ratios as a list of lists (first dimension is lists representing the spectra, second dimension are the m/z values in each spectra list
+# creates a list of lists of bins of size binsize
+def create_bins(mzs, binsize):
 	minMax = findMinMax(mzs)
 	minmz, maxmz = minMax[0], minMax[1]
 	lower_bound = math.floor(minmz)
-	width = 1
+	width = binsize
 	quantity = math.ceil(maxmz-minmz)
 	
 	bins = []
@@ -60,9 +65,15 @@ def find_bin(value, bins):
     return -1
 
 	
-# creates a matrix that finds the bins that the peaks in a spectra fall into
-def create_peak_matrix(mzs, intensities, bins):
+# creates a matrix that finds the bins that the m/z ratios in a spectra fall into
+# if a m/z ratio of a spectra falls into a bin, then the intensity of that ratio will be placed into the bin (if not, the bin will have a 0)
+# rows (second dimension) are the bins that are either 0 or an intensity value, columns (first dimension) are the spectra
+# if multiple m/z ratios of a spectra fall into a single bin, a list of intensities will be placed into the bin
+# NOTE: the entry peaks[0] contains a list of identifiers for each column of the binned data (each column represents a spectra)
+#	the list of identifiers is a list of strings, each string in the following format: filepath_scan#
+def create_peak_matrix(mzs, intensities, identifiers, bins):
 	peaks = []
+	peaks.append(identifiers)
 	for i,mz in enumerate(mzs):
 		temp = [0] * len(bins)
 		for j,m in enumerate(mz):
@@ -75,7 +86,7 @@ def create_peak_matrix(mzs, intensities, bins):
 				else:
 					temp[index] = [temp[index], intensities[i][j]]
 		peaks.append(temp)
-	return(peaks)
+	return peaks
 
 
 # adds gaussian noise to the m/z dataset
@@ -104,7 +115,7 @@ def create_gaussian_noise(mzs):
 		noisy_shaped.append(temp)
 		i += 1
 
-	return(noisy_shaped)
+	return noisy_shaped
 
 # Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
 # 	m/z data on a histogram; 
@@ -149,15 +160,16 @@ def findMinMax(mzs):
 # 	mgf_contents = read_mgf_binning(['./data/HMDB.mgf','./data/agp500.mgf'])
 # 	mzs = mgf_contents[0]
 # 	intensities = mgf_contents[1] 
+# 	identifiers = mgf_contents[2]
 
 # 	# adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
 # 	mzs = create_gaussian_noise(mzs)
 
 # 	# creates bins
-# 	bins = create_bins(mzs)
+# 	bins = create_bins(mzs, 1)
 
 # 	# prints peaks matrix
-# 	print(create_peak_matrix(mzs, intensities, bins))
+# 	print(create_peak_matrix(mzs, intensities, identifiers, bins))
 
 # 	# graphs histogram
 # 	graph(mzs, len(bins))
