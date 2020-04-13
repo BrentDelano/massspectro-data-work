@@ -67,19 +67,10 @@ def read_mgf_cosine(mgfFile, specific_spectra=0):
 	return spectra, masses
 
 
-# takes in a .mgf file and uses read_mgf_cosine() to get spectra in the file
-# optional: specific_spectra - a list of lists ([[file # within given lists, spectra # in file], ...])
-#	Note: if only one .mgf file is given, then specific_spectra should be a 1D list ([spectra # in file, ...]) (file # & spectra # start from one)
-#	used to make process more efficient and not calculate cosine scores with all spectra
 # calculates all cosine scores and creates a .txt file titled 'cos_score_data' with the scores
 # the .txt file has a nxn array with each row representing a spectra and each column also representing a spectra
 #	therefore, [i, j] is the cosine score between spectra i and spectra j
-def calc_cos_scores(mgfFiles, specific_spectra=0):
-	spectra = []
-	masses = []
-	mgf_data = read_mgf_cosine(mgfFiles, specific_spectra)
-	spectra, masses = mgf_data[0], mgf_data[1]
-
+def calc_cos_scores(spectra, masses):
 	cosScoreTxt = open('cos_score_data', 'w')
 	cosScores = []
 	cosScoreTxt.write('[')

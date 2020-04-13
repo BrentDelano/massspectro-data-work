@@ -28,7 +28,9 @@ def read_mgfs(mgfs):
 
 # uses binning_ms.py and takes the m/z ratios from the spectra data in an mgf file and bins them together, returning a matrix of binned spectra
 # read binning_ms.create_bins and binning_ms.create_peak_matrix for an in depth documentation of this function
-def bin_spectra(mzs, intensities, identifiers, binsize):
+def bin_spectra(mgfs, binsize):
+	mgf_data = binning_ms.read_mgf_binning(mgfs)
+	mzs, intensities, identifiers = mgf_data[0], mgf_data[1], mgf_data[2]
 	bins = binning_ms.create_bins(mzs, binsize)
 	filled_bins = binning_ms.create_peak_matrix(mzs, intensities, identifiers, bins)
 	return filled_bins
@@ -37,7 +39,9 @@ def bin_spectra(mzs, intensities, identifiers, binsize):
 # uses cos_score.py to calculate the cosine scores of all the spectra passed in, creating a .txt file with a nxn matrix of cosine scores (n = # of spectra)
 # also requires the mass of all the spectra
 # read cos_score.calc_cos_scores() for an in depth documentation of this function
-def calc_cos_scores(spectra, masses):
+def calc_cos_scores(mgfs, specific_spectra=0):
+	mgf_data = cos_score.read_mgf_cosine(mgfs, specific_spectra)
+	spectra, masses = mgf_data[0], mgf_data[1]
 	cos_score.calc_cos_scores(spectra, masses)
 
 
