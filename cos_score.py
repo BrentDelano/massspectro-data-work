@@ -11,14 +11,26 @@ sys.path.insert(1, './GNPS_Workflows/shared_code')
 import spectrum_alignment
 
 # takes in either a string or a list of strings (for multiple file paths), each string representing a file path to the .mgf file
+# optional: specific_spectra - a list of lists ([[file # within given lists, spectra # in file], ...]) (file # & spectra # start from one)
+#	Note: if only one .mgf file is given, then specific_spectra should be a 1D list ([spectra # in file, ...])
+#	used to make process more efficient and not calculate cosine scores with all spectra
 # sort through HMDB file and place data into spectra list
 # returns a spectra array with m/z ratios and intensities as a list of lists (different from binning-ms.py)
-def read_mgf_cosine(mgfFile):
+def read_mgf_cosine(mgfFile, specific_spectra=0):
 	spectra = []
 	masses = []
-	if (isinstance(mgfFile, list)):
-		for mgfs_n in mgfFile:
-			with mgf.MGF(mgfs_n) as reader:
+	if (specific_spectra == 0):
+		if (isinstance(mgfFile, list)):
+			for mgfs_n in mgfFile:
+				with mgf.MGF(mgfs_n) as reader:
+					for spectrum in reader:
+						masses.append(spectrum['params']['pepmass'][0])
+						temp = []
+						for i in range(len(spectrum['m/z array'])):
+							temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
+						spectra.append(temp)
+		else:
+			with mgf.MGF(mgfFile) as reader:
 				for spectrum in reader:
 					masses.append(spectrum['params']['pepmass'][0])
 					temp = []
@@ -26,22 +38,47 @@ def read_mgf_cosine(mgfFile):
 						temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
 					spectra.append(temp)
 	else:
-		with mgf.MGF(mgfFile) as reader:
-			for spectrum in reader:
-				masses.append(spectrum['params']['pepmass'][0])
-				temp = []
-				for i in range(len(spectrum['m/z array'])):
-					temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
-				spectra.append(temp)
+		if (isinstance(mgfFile, list)):
+			for n, mgfs_n in enumerate(mgfFile):
+				with mgf.MGF(mgfs_n) as reader:
+					s_in_mgf = []
+					for s in specific_spectra:
+						if (s[0] - 1 == n):
+							s_in_mgf.append(s[1])
+					for k, spectrum in enumerate(reader):
+						for j in s_in_mgf:
+							if (k == j - 1):
+								masses.append(spectrum['params']['pepmass'][0])
+								temp = []
+								for i in range(len(spectrum['m/z array'])):
+									temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
+								spectra.append(temp)
+		else:
+			with mgf.MGF(mgfFile) as reader:
+				for k, spectrum in enumerate(reader):
+					for j in specific_spectra:
+						if (k == j - 1):
+							masses.append(spectrum['params']['pepmass'][0])
+							temp = []
+							for i in range(len(spectrum['m/z array'])):
+								temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
+							spectra.append(temp)
+
 	return spectra, masses
 
 
+# takes in a .mgf file and uses read_mgf_cosine() to get spectra in the file
+# optional: specific_spectra - a list of lists ([[file # within given lists, spectra # in file], ...])
+#	Note: if only one .mgf file is given, then specific_spectra should be a 1D list ([spectra # in file, ...]) (file # & spectra # start from one)
+#	used to make process more efficient and not calculate cosine scores with all spectra
 # calculates all cosine scores and creates a .txt file titled 'cos_score_data' with the scores
 # the .txt file has a nxn array with each row representing a spectra and each column also representing a spectra
 #	therefore, [i, j] is the cosine score between spectra i and spectra j
-def calc_cos_scores(mgfFile):
-	mgf_contents = read_mgf(mgfFile)
-	spectra, masses = mgf_contents[0], mgf_contents[1]
+def calc_cos_scores(mgfFiles, specific_spectra=0):
+	spectra = []
+	masses = []
+	mgf_data = read_mgf_cosine(mgfFiles, specific_spectra)
+	spectra, masses = mgf_data[0], mgf_data[1]
 
 	cosScoreTxt = open('cos_score_data', 'w')
 	cosScores = []
@@ -78,10 +115,8 @@ def calc_cos_scores(mgfFile):
 
 # # for testing
 # def main():
-# 	spectra_data = read_mgf_cosine(['./data/HMDB.mgf','./data/agp500.mgf'])
-# 	spectra = spectra_data[0]
-# 	masses = spectra_data[1]
-# 	print(spectra)
+# 	mgf_data = read_mgf_cosine(['./data/HMDB.mgf', './data/agp500.mgf'], [[1,1], [1,2], [2,1], [2,2]])
+# 	print(mgf_data[0])
 
 # if __name__ == "__main__":
 # 	main()
