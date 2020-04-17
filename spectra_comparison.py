@@ -8,7 +8,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(1, './GNPS_Workflows/shared_code')
+sys.path.insert(1, './lib')
 import spectrum_alignment
 import cos_score
 import binning_ms
