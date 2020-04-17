@@ -72,6 +72,14 @@ def find_bin(value, bins):
 # NOTE: the entry peaks[0] contains a list of identifiers for each column of the binned data (each column represents a spectra)
 #	the list of identifiers is a list of strings, each string in the following format: filepath_scan#
 def create_peak_matrix(mzs, intensities, identifiers, bins):
+	specBinTxt = open('binned_spectra', 'w')
+	specBinTxt.write('[[')
+	for n,i in enumerate(identifiers):
+		specBinTxt.write(i)
+		if (n < len(identifiers)-1):
+			specBinTxt.write(', ')
+	specBinTxt.write('], ')
+	
 	peaks = []
 	peaks.append(identifiers)
 	for i,mz in enumerate(mzs):
@@ -86,6 +94,24 @@ def create_peak_matrix(mzs, intensities, identifiers, bins):
 				else:
 					temp[index] = [temp[index], intensities[i][j]]
 		peaks.append(temp)
+		specBinTxt.write('[')
+		for n,t in enumerate(temp):
+			if(isinstance(t, list)):
+				specBinTxt.write('[')
+				for c,inst in enumerate(t):
+					specBinTxt.write(str(inst))
+					if (c < len(t)-1):
+						specBinTxt.write(', ')
+				specBinTxt.write(']')
+			else:
+				specBinTxt.write(str(t))
+			if (n < len(temp)-1):
+					specBinTxt.write(', ')
+		specBinTxt.write(']')
+		if (i < len(identifiers)-1):
+			specBinTxt.write(', ')
+
+	specBinTxt.write(']')
 	return peaks
 
 
@@ -154,25 +180,25 @@ def findMinMax(mzs):
 	return minmz, maxmz
 
 
-# # for testing
-# def main():
-# 	# reads mgf file and initializes lists of m/z ratios and respective intensities
-# 	mgf_contents = read_mgf_binning(['./data/HMDB.mgf','./data/agp500.mgf'])
-# 	mzs = mgf_contents[0]
-# 	intensities = mgf_contents[1] 
-# 	identifiers = mgf_contents[2]
+# for testing
+def main():
+	# reads mgf file and initializes lists of m/z ratios and respective intensities
+	mgf_contents = read_mgf_binning(['./data/HMDB.mgf','./data/agp500.mgf','./data/agp3k.mgf'])
+	mzs = mgf_contents[0]
+	intensities = mgf_contents[1] 
+	identifiers = mgf_contents[2]
 
-# 	# adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
-# 	mzs = create_gaussian_noise(mzs)
+	# adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
+	# mzs = create_gaussian_noise(mzs)
 
-# 	# creates bins
-# 	bins = create_bins(mzs, 1)
+	# creates bins
+	bins = create_bins(mzs, 1)
 
-# 	# prints peaks matrix
-# 	print(create_peak_matrix(mzs, intensities, identifiers, bins))
+	# prints peaks matrix
+	create_peak_matrix(mzs, intensities, identifiers, bins)
 
-# 	# graphs histogram
-# 	graph(mzs, len(bins))
+	# graphs histogram
+	# graph(mzs, len(bins))
 
-# if __name__ == "__main__":
-# 	main()
+if __name__ == "__main__":
+	main()
