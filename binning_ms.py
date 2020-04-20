@@ -7,15 +7,19 @@
 #	if not, then it will be 0
 # Able to add Gaussian noise to the dataset in order to visualize the effect on bins
 # Plots histogram of m/z spectra in bins with relative frequency
+# Compresses bins through pca
 # Uses pyteomics api (https://pyteomics.readthedocs.io/en/latest/) for reading .mgf files
 # Uses https://www.python-course.eu/pandas_python_binning.php for binning functions
 # Uses https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html for plots
+# Uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca for compression
 
 import pyteomics
 from pyteomics import mgf
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
+from sklearn.decomposition import PCA
 
 # takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
 # outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
@@ -40,19 +44,33 @@ def read_mgf_binning(mgfFile):
 	return mzs, intensities, identifiers
 
 
-# from https://www.python-course.eu/pandas_python_binning.php
+# finds the minimum bind size such that each m/z ratio within a spectra will fall into its own bin
+def get_min_binsize(mzs):
+	min = 0
+	for spec in mzs:
+		temp = copy.copy(spec)
+		temp.sort()
+		if (min == 0):
+			min = temp[1]-temp[0]
+		for n,mz in enumerate(temp):
+			if (n < len(temp) - 1):
+				diff = abs(mz - temp[n+1])
+				if (diff < min):
+					min = diff
+	return min
+
+
 # takes in m/z ratios as a list of lists (first dimension is lists representing the spectra, second dimension are the m/z values in each spectra list
 # creates a list of lists of bins of size binsize
 def create_bins(mzs, binsize):
 	minMax = findMinMax(mzs)
-	minmz, maxmz = minMax[0], minMax[1]
-	lower_bound = math.floor(minmz)
-	width = binsize
-	quantity = math.ceil(maxmz-minmz)
-	
+	minmz, maxmz = minMax[0], minMax[1]	
 	bins = []
-	for low in range(lower_bound, lower_bound + quantity*width + 1, width):
-		bins.append((low, low + width))
+	quantity = math.ceil((maxmz-minmz)/binsize)
+	i = 0;
+	while (i < quantity):
+		bins.append([i*binsize + minmz, (i+1)*binsize + minmz])
+		i = i+1
 	return bins
 
 
@@ -71,14 +89,15 @@ def find_bin(value, bins):
 # if multiple m/z ratios of a spectra fall into a single bin, a list of intensities will be placed into the bin
 # NOTE: the entry peaks[0] contains a list of identifiers for each column of the binned data (each column represents a spectra)
 #	the list of identifiers is a list of strings, each string in the following format: filepath_scan#
-def create_peak_matrix(mzs, intensities, identifiers, bins):
-	specBinTxt = open('binned_spectra', 'w')
-	specBinTxt.write('[[')
-	for n,i in enumerate(identifiers):
-		specBinTxt.write(i)
-		if (n < len(identifiers)-1):
-			specBinTxt.write(', ')
-	specBinTxt.write('], ')
+# listIfMultMZ: optional - if true, then if there is >1 m/z in a bin, it will create a list in that bin; if false, it will add the intensities together
+def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
+	# specBinTxt = open('binned_spectra', 'w')
+	# specBinTxt.write('[[')
+	# for n,i in enumerate(identifiers):
+	# 	specBinTxt.write(i)
+	# 	if (n < len(identifiers)-1):
+	# 		specBinTxt.write(', ')
+	# specBinTxt.write('], ')
 	
 	peaks = []
 	peaks.append(identifiers)
@@ -86,32 +105,35 @@ def create_peak_matrix(mzs, intensities, identifiers, bins):
 		temp = [0] * len(bins)
 		for j,m in enumerate(mz):
 			index = find_bin(m,bins)
-			if (temp[index] == 0):
-				temp[index] = intensities[i][j]
-			else:
-				if (isinstance(temp[index], list)):
-					temp[index].append(intensities[i][j])
+			if (listIfMultMZ):
+				if (temp[index] == 0):
+					temp[index] = intensities[i][j]
 				else:
-					temp[index] = [temp[index], intensities[i][j]]
-		peaks.append(temp)
-		specBinTxt.write('[')
-		for n,t in enumerate(temp):
-			if(isinstance(t, list)):
-				specBinTxt.write('[')
-				for c,inst in enumerate(t):
-					specBinTxt.write(str(inst))
-					if (c < len(t)-1):
-						specBinTxt.write(', ')
-				specBinTxt.write(']')
+					if (isinstance(temp[index], list)):
+						temp[index].append(intensities[i][j])
+					else:
+						temp[index] = [temp[index], intensities[i][j]]
 			else:
-				specBinTxt.write(str(t))
-			if (n < len(temp)-1):
-					specBinTxt.write(', ')
-		specBinTxt.write(']')
-		if (i < len(identifiers)-1):
-			specBinTxt.write(', ')
+				temp[index] = temp[index] + intensities[i][j]
+		peaks.append(temp)
+	# 	specBinTxt.write('[')
+	# 	for n,t in enumerate(temp):
+	# 		if(isinstance(t, list)):
+	# 			specBinTxt.write('[')
+	# 			for c,inst in enumerate(t):
+	# 				specBinTxt.write(str(inst))
+	# 				if (c < len(t)-1):
+	# 					specBinTxt.write(', ')
+	# 			specBinTxt.write(']')
+	# 		else:
+	# 			specBinTxt.write(str(t))
+	# 		if (n < len(temp)-1):
+	# 				specBinTxt.write(', ')
+	# 	specBinTxt.write(']')
+	# 	if (i < len(identifiers)-1):
+	# 		specBinTxt.write(', ')
 
-	specBinTxt.write(']')
+	# specBinTxt.write(']')
 	return peaks
 
 
@@ -180,6 +202,17 @@ def findMinMax(mzs):
 	return minmz, maxmz
 
 
+# uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
+# reduces the number of bins by pca
+def compress_Bins(filled_bins):
+	filled_bins.pop(0)
+	np_bins = np.array(filled_bins)
+	pca = PCA(n_components=len(filled_bins[0]))
+	pca.fit(np_bins)
+	print(pca.explained_variance_ratio_)
+	print(pca.singular_values_)
+
+
 # for testing
 def main():
 	# reads mgf file and initializes lists of m/z ratios and respective intensities
@@ -192,10 +225,12 @@ def main():
 	# mzs = create_gaussian_noise(mzs)
 
 	# creates bins
-	bins = create_bins(mzs, 1)
+	# min_binsize = get_min_binsize(mzs)
+	bins = create_bins(mzs, 0.3)
 
 	# prints peaks matrix
-	create_peak_matrix(mzs, intensities, identifiers, bins)
+	peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
+	compress_Bins(peak_matrix)
 
 	# graphs histogram
 	# graph(mzs, len(bins))
