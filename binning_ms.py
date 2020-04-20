@@ -207,10 +207,9 @@ def findMinMax(mzs):
 def compress_Bins(filled_bins):
 	filled_bins.pop(0)
 	np_bins = np.array(filled_bins)
-	pca = PCA(n_components=len(filled_bins[0]))
-	pca.fit(np_bins)
-	print(pca.explained_variance_ratio_)
-	print(pca.singular_values_)
+	pca = PCA(n_components=len(filled_bins[0])-1)
+	compressed = pca.fit_transform(np_bins)
+	print(compressed)
 
 
 # for testing
