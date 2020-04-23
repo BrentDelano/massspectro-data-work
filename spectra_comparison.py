@@ -8,10 +8,12 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(1, './lib')
 import spectrum_alignment
 import cos_score
 import binning_ms
+import copy
+
+sys.path.insert(1, './lib')
 
 # reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string
 # returns four lists: 
@@ -51,7 +53,7 @@ def main():
 	spectra, masses, mzs, intensities, identifiers = mgf_data[0], mgf_data[1], mgf_data[2], mgf_data[3], mgf_data[4]
 
 	# print(bin_spectra(mzs, intensities, identifiers, 1))
-	calc_cos_scores(spectra, masses)
+	# calc_cos_scores(spectra, masses)
 
 if __name__ == "__main__":
 	main()
