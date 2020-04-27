@@ -232,7 +232,8 @@ def compress_bins(filled_bins):
 	np_bins = np.array(filled_bins)
 	pca = PCA(n_components=len(filled_bins[0])-1)
 	compressed = pca.fit_transform(np_bins)
-	return compressed
+	components = pca.components_
+	return compressed, components
 
 
 # graphs the first two dimensions of the compressed dataset
@@ -246,6 +247,22 @@ def graph_compression(compressed):
 	plt.scatter(x,y)
 	plt.xlabel('Bins')
 	plt.ylabel('Compressed Intensities')
+	plt.show()
+
+
+# graphs the directions of maximum variance
+# Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html
+def graph_components(components):
+	comp_od = []
+	for i in range(len(components[0])):
+		temp_sum = 0
+		for j in range(len(components)):
+			temp_sum = temp_sum + components[j][i]
+		comp_od.append(temp_sum)
+	x = list(range(len(comp_od)))
+	plt.bar(x, comp_od, 1, align='edge')
+	plt.ylabel('Bins')
+	plt.xlabel('Variance')
 	plt.show()
 
 
@@ -267,9 +284,11 @@ def main():
 	# prints peaks matrix
 	peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
 	compressed = compress_bins(peak_matrix)
-	graph_compression(compressed)
+	compr, components = compressed[0], compressed[1]
+	# graph_compression(compressed)
+	graph_components([components[0], components[1], components[2]])
 
-	# graphs histogra
+	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
 if __name__ == "__main__":
