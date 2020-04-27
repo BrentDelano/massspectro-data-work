@@ -192,7 +192,7 @@ def create_gaussian_noise(mzs):
 # 	m/z data on a histogram; 
 # Also plots the probability density function of the distribution (in red)
 # Creates bins of similar dimension to create_bins()
-def graph(mzs, numBins):
+def graph_mzs(mzs, numBins):
 	mzs_od = []
 	for mz in mzs:
 		for m in mz:
@@ -227,12 +227,26 @@ def findMinMax(mzs):
 
 # uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 # reduces the number of bins by pca
-def compress_Bins(filled_bins):
+def compress_bins(filled_bins):
 	filled_bins.pop(0)
 	np_bins = np.array(filled_bins)
 	pca = PCA(n_components=len(filled_bins[0])-1)
 	compressed = pca.fit_transform(np_bins)
-	print(compressed)
+	return compressed
+
+
+# graphs the first two dimensions of the compressed dataset
+def graph_compression(compressed):
+	x = []
+	y = []
+	for i in range(2):
+		for c in compressed:
+			x.append(i+1)
+			y.append(c[i])
+	plt.scatter(x,y)
+	plt.xlabel('Bins')
+	plt.ylabel('Compressed Intensities')
+	plt.show()
 
 
 # for testing
@@ -252,11 +266,11 @@ def main():
 
 	# prints peaks matrix
 	peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
-	print(peak_matrix)
-	# compress_Bins(peak_matrix)
+	compressed = compress_bins(peak_matrix)
+	graph_compression(compressed)
 
-	# graphs histogram
-	# graph(mzs, len(bins))
+	# graphs histogra
+	# graph_mzs(mzs, len(bins))
 
 if __name__ == "__main__":
 	main()
