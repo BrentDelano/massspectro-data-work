@@ -44,7 +44,7 @@ def read_mgf_binning(mgfFile):
 	return mzs, intensities, identifiers
 
 
-# finds the minimum bind size such that each m/z ratio within a spectra will fall into its own bin
+# finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
 def get_min_binsize(mzs):
 	min = 0
 	for spec in mzs:
@@ -64,7 +64,8 @@ def get_min_binsize(mzs):
 # creates a list of lists of bins of size binsize
 def create_bins(mzs, binsize):
 	minMax = findMinMax(mzs)
-	minmz, maxmz = minMax[0], minMax[1]	
+	minmz = minMax[0] - 0.1
+	maxmz = minMax[1] + 0.1
 	bins = []
 	quantity = math.ceil((maxmz-minmz)/binsize)
 	i = 0;
@@ -85,6 +86,7 @@ def find_bin(value, bins):
 	
 # creates a matrix that finds the bins that the m/z ratios in a spectra fall into
 # if a m/z ratio of a spectra falls into a bin, then the intensity of that ratio will be placed into the bin (if not, the bin will have a 0)
+# only accounts for m/z ratios with intensity values > 10
 # rows (second dimension) are the bins that are either 0 or an intensity value, columns (first dimension) are the spectra
 # if multiple m/z ratios of a spectra fall into a single bin, a list of intensities will be placed into the bin
 # NOTE: the entry peaks[0] contains a list of identifiers for each column of the binned data (each column represents a spectra)
@@ -106,16 +108,37 @@ def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
 		for j,m in enumerate(mz):
 			index = find_bin(m,bins)
 			if (listIfMultMZ):
-				if (temp[index] == 0):
-					temp[index] = intensities[i][j]
-				else:
-					if (isinstance(temp[index], list)):
-						temp[index].append(intensities[i][j])
+				if (intensities[i][j] > 10):
+					if (temp[index] == 0):
+						temp[index] = intensities[i][j]
 					else:
-						temp[index] = [temp[index], intensities[i][j]]
+						if (isinstance(temp[index], list)):
+							temp[index].append(intensities[i][j])
+						else:
+							temp[index] = [temp[index], intensities[i][j]]
 			else:
-				temp[index] = temp[index] + intensities[i][j]
+				if (intensities[i][j] > 10):
+					temp[index] = temp[index] + intensities[i][j]
 		peaks.append(temp)
+
+	remove = []
+	for i in range(len(peaks[1])):
+		delete = True
+		for j,p in enumerate(peaks):
+			if (j != 0):
+				if (p[i] != 0):
+					delete = False
+					break
+		if (delete == True):
+			remove.append(i)
+
+	for j,p in enumerate(peaks):
+		if (j != 0):
+			for r in reversed(remove):
+				if (j == 1):
+					bins.pop(r)
+				p.pop(r)
+
 	# 	specBinTxt.write('[')
 	# 	for n,t in enumerate(temp):
 	# 		if(isinstance(t, list)):
@@ -229,7 +252,8 @@ def main():
 
 	# prints peaks matrix
 	peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
-	compress_Bins(peak_matrix)
+	print(peak_matrix)
+	# compress_Bins(peak_matrix)
 
 	# graphs histogram
 	# graph(mzs, len(bins))
