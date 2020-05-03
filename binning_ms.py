@@ -20,6 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 from sklearn.decomposition import PCA
+import pickle
 
 # takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
 # outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
@@ -93,14 +94,6 @@ def find_bin(value, bins):
 #	the list of identifiers is a list of strings, each string in the following format: filepath_scan#
 # listIfMultMZ: optional - if true, then if there is >1 m/z in a bin, it will create a list in that bin; if false, it will add the intensities together
 def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
-	# specBinTxt = open('binned_spectra', 'w')
-	# specBinTxt.write('[[')
-	# for n,i in enumerate(identifiers):
-	# 	specBinTxt.write(i)
-	# 	if (n < len(identifiers)-1):
-	# 		specBinTxt.write(', ')
-	# specBinTxt.write('], ')
-	
 	peaks = []
 	peaks.append(identifiers)
 	for i,mz in enumerate(mzs):
@@ -138,25 +131,6 @@ def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
 				if (j == 1):
 					bins.pop(r)
 				p.pop(r)
-
-	# 	specBinTxt.write('[')
-	# 	for n,t in enumerate(temp):
-	# 		if(isinstance(t, list)):
-	# 			specBinTxt.write('[')
-	# 			for c,inst in enumerate(t):
-	# 				specBinTxt.write(str(inst))
-	# 				if (c < len(t)-1):
-	# 					specBinTxt.write(', ')
-	# 			specBinTxt.write(']')
-	# 		else:
-	# 			specBinTxt.write(str(t))
-	# 		if (n < len(temp)-1):
-	# 				specBinTxt.write(', ')
-	# 	specBinTxt.write(']')
-	# 	if (i < len(identifiers)-1):
-	# 		specBinTxt.write(', ')
-
-	# specBinTxt.write(']')
 	return peaks
 
 
@@ -188,26 +162,6 @@ def create_gaussian_noise(mzs):
 
 	return noisy_shaped
 
-# Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
-# 	m/z data on a histogram; 
-# Also plots the probability density function of the distribution (in red)
-# Creates bins of similar dimension to create_bins()
-def graph_mzs(mzs, numBins):
-	mzs_od = []
-	for mz in mzs:
-		for m in mz:
-			mzs_od.append(m)
-
-	r = findMinMax(mzs)	
-	mu = np.mean(mzs_od)
-	sigma = np.std(mzs_od)
-
-	count, bins, ignored = plt.hist(x=mzs_od, bins=numBins, density=True, range=r, histtype = 'bar', facecolor='blue')
-	plt.plot(bins, 1/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (bins - mu)**2 / (2 * sigma**2) ), linewidth=2, color='r')
-	plt.ylabel('Frequency')
-	plt.xlabel('M/Z Bins')
-	plt.show()
-
 
 # given a list of lists of m/z data, it will return the minimum and maximum m/z values in the lists
 def findMinMax(mzs):
@@ -233,20 +187,46 @@ def compress_bins(filled_bins):
 	pca = PCA(n_components=len(filled_bins[0])-1)
 	compressed = pca.fit_transform(np_bins)
 	components = pca.components_
-	return compressed, components
+	var_ratio = pca.explained_variance_ratio_
+	return compressed, components, var_ratio
+
+
+# Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
+# 	m/z data on a histogram; 
+# Also plots the probability density function of the distribution (in red)
+# Creates bins of similar dimension to create_bins()
+def graph_mzs(mzs, numBins):
+	mzs_od = []
+	for mz in mzs:
+		for m in mz:
+			mzs_od.append(m)
+
+	r = findMinMax(mzs)	
+	mu = np.mean(mzs_od)
+	sigma = np.std(mzs_od)
+
+	count, bins, ignored = plt.hist(x=mzs_od, bins=numBins, density=True, range=r, histtype = 'bar', facecolor='blue')
+	plt.plot(bins, 1/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (bins - mu)**2 / (2 * sigma**2) ), linewidth=2, color='r')
+	plt.ylabel('Frequency')
+	plt.xlabel('M/Z Bins')
+	plt.show()
 
 
 # graphs the first two dimensions of the compressed dataset
 def graph_compression(compressed):
-	x = []
-	y = []
-	for i in range(2):
-		for c in compressed:
-			x.append(i+1)
-			y.append(c[i])
-	plt.scatter(x,y)
-	plt.xlabel('Bins')
-	plt.ylabel('Compressed Intensities')
+	s1 = compressed[1]
+	s2 = compressed[2]
+	
+	x = np.arange(len(s1))
+	width = 0.15
+	fig, ax = plt.subplots()
+	rects1 = ax.bar(x - width/2, s1, width, label='Spectra 1')
+	rects2 = ax.bar(x + width/2, s2, width, label='Spectra 2')
+	
+	ax.set_xlabel('Bins')
+	ax.set_ylabel('Compressed Intensities')
+	ax.legend()
+	fig.tight_layout()
 	plt.show()
 
 
@@ -261,32 +241,56 @@ def graph_components(components):
 		comp_od.append(temp_sum)
 	x = list(range(len(comp_od)))
 	plt.bar(x, comp_od, 1, align='edge')
-	plt.ylabel('Bins')
-	plt.xlabel('Variance')
+	plt.ylabel('Variance')
+	plt.xlabel('Bins')
+	plt.show()
+
+
+def graph_scree_plot_variance(variance_ratio):
+	x = list(range(1, len(variance_ratio) + 1))
+	plt.plot(x, variance_ratio, '-o')
+	plt.ylabel('Variance')
+	plt.xlabel('Bins')
+	plt.title('Variance Explained by Each Bin')
 	plt.show()
 
 
 # for testing
 def main():
-	# reads mgf file and initializes lists of m/z ratios and respective intensities
-	mgf_contents = read_mgf_binning(['./data/HMDB.mgf','./data/agp500.mgf','./data/agp3k.mgf'])
-	mzs = mgf_contents[0]
-	intensities = mgf_contents[1] 
-	identifiers = mgf_contents[2]
+	# # reads mgf file and initializes lists of m/z ratios and respective intensities
+	# mgf_contents = read_mgf_binning(['./data/HMDB.mgf','./data/agp500.mgf','./data/agp3k.mgf','./data/QUERT.mgf'])
+	# mzs = mgf_contents[0]
+	# intensities = mgf_contents[1] 
+	# identifiers = mgf_contents[2]
 
-	# adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
+	# # adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
 	# mzs = create_gaussian_noise(mzs)
 
-	# creates bins
-	# min_binsize = get_min_binsize(mzs)
-	bins = create_bins(mzs, 0.3)
+	# # creates bins
+	# bins = create_bins(mzs, 0.3)
 
-	# prints peaks matrix
-	peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
-	compressed = compress_bins(peak_matrix)
-	compr, components = compressed[0], compressed[1]
-	# graph_compression(compressed)
-	graph_components([components[0], components[1], components[2]])
+	# # creates peaks matrix
+	# peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
+
+	# # pickles the binned data
+	# pkld_bins = open('binned_ms.pkl', 'wb')
+	# pickle.dump(peak_matrix, pkld_bins)
+	# pkl_file.close()
+
+	# opens the pickled data
+	pkl_data = open('binned_ms.pkl', 'rb')
+	binned_peaks = pickle.load(pkl_data)
+	pkl_data.close()
+
+	# compresses peak_matrix with pca; graphs compression
+	labels = binned_peaks.pop(0)
+	compressed = compress_bins(binned_peaks)
+	# compr = compressed[0]
+	# graph_compression(compr)
+	# components = compressed[1]
+	# graph_components([components[0], components[1], components[2]])
+	var_ratio = compressed[2]
+	graph_scree_plot_variance(var_ratio)
 
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
