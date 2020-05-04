@@ -261,24 +261,27 @@ def graph_loadings_by_variance(components, variance_ratio):
 	for c in components:
 		nsum = 0
 		for j in c:
-			nsum = nsum + j
+			nsum = nsum + abs(j)
 		comp_sum.append(nsum)
 
 	lbv = []
 	for n, c in enumerate(comp_sum):
 		lbv.append(c * variance_ratio[n])
 
+	print(lbv)
+
 	# x = list(range(len(lbv)))
 	# plt.bar(x, lbv, 1, align='edge')
 	# plt.ylabel('Loadings x Variance')
 	# plt.xlabel('Bins')
-	# plt.title('Loadings x Variance per Bin')
+	# plt.title('Loadings x Variance per Bin for First 27 Axes')
 	# plt.show()
 
 	r = [min(lbv), max(lbv)]
 	plt.hist(x=lbv, bins=len(lbv), density=True, range=r, histtype='bar', facecolor='blue')
 	plt.ylabel('Frequency')
 	plt.xlabel('Loadings x Variance')
+	plt.title('Histogram of Loadings x Variance for First 27 Axes')
 	plt.show()
 
 
@@ -329,8 +332,7 @@ def main():
 	# graph_components([components[0], components[1], components[2]])
 	var_ratio = compressed[2]
 	# graph_scree_plot_variance(var_ratio)
-	graph_loadings_by_variance(components, var_ratio)
-
+	# graph_loadings_by_variance(components[:27], var_ratio)
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
