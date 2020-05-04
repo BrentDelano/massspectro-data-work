@@ -332,7 +332,7 @@ def main():
 	# graph_components([components[0], components[1], components[2]])
 	var_ratio = compressed[2]
 	# graph_scree_plot_variance(var_ratio)
-	# graph_loadings_by_variance(components[:27], var_ratio)
+	graph_loadings_by_variance(components[:27], var_ratio)
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
