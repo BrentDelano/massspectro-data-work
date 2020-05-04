@@ -218,13 +218,14 @@ def graph_compression(compressed):
 	s2 = compressed[2]
 	
 	x = np.arange(len(s1))
-	width = 0.15
+	width = 0.45
 	fig, ax = plt.subplots()
 	rects1 = ax.bar(x - width/2, s1, width, label='Spectra 1')
 	rects2 = ax.bar(x + width/2, s2, width, label='Spectra 2')
 	
 	ax.set_xlabel('Bins')
 	ax.set_ylabel('Compressed Intensities')
+	plt.title('Compressed Representation of First Two Spectra')
 	ax.legend()
 	fig.tight_layout()
 	plt.show()
@@ -255,6 +256,32 @@ def graph_scree_plot_variance(variance_ratio):
 	plt.show()
 
 
+def graph_loadings_by_variance(components, variance_ratio):
+	comp_sum = []
+	for c in components:
+		nsum = 0
+		for j in c:
+			nsum = nsum + j
+		comp_sum.append(nsum)
+
+	lbv = []
+	for n, c in enumerate(comp_sum):
+		lbv.append(c * variance_ratio[n])
+
+	# x = list(range(len(lbv)))
+	# plt.bar(x, lbv, 1, align='edge')
+	# plt.ylabel('Loadings x Variance')
+	# plt.xlabel('Bins')
+	# plt.title('Loadings x Variance per Bin')
+	# plt.show()
+
+	r = [min(lbv), max(lbv)]
+	plt.hist(x=lbv, bins=len(lbv), density=True, range=r, histtype='bar', facecolor='blue')
+	plt.ylabel('Frequency')
+	plt.xlabel('Loadings x Variance')
+	plt.show()
+
+
 # for testing
 def main():
 	# # reads mgf file and initializes lists of m/z ratios and respective intensities
@@ -277,20 +304,32 @@ def main():
 	# pickle.dump(peak_matrix, pkld_bins)
 	# pkl_file.close()
 
-	# opens the pickled data
-	pkl_data = open('binned_ms.pkl', 'rb')
-	binned_peaks = pickle.load(pkl_data)
-	pkl_data.close()
+	# # opens the pickled uncompressed data
+	# pkl_data = open('binned_ms.pkl', 'rb')
+	# binned_peaks = pickle.load(pkl_data)
+	# pkl_data.close()
 
-	# compresses peak_matrix with pca; graphs compression
-	labels = binned_peaks.pop(0)
-	compressed = compress_bins(binned_peaks)
+	# # compresses peak_matrix with pca; graphs compression
+	# labels = binned_peaks.pop(0)
+	# compressed = compress_bins(binned_peaks)
+
+	# # pickles the compressed data
+	# pkld_bins2 = open('compressed_binned_ms.pkl', 'wb')
+	# pickle.dump(compressed, pkld_bins2)
+	# pkl_file.close()
+
+	# opens the pickled compressed data
+	pkl_data2 = open('compressed_binned_ms.pkl', 'rb')
+	compressed = pickle.load(pkl_data2)
+	pkl_data2.close()
+
 	# compr = compressed[0]
 	# graph_compression(compr)
-	# components = compressed[1]
+	components = compressed[1]
 	# graph_components([components[0], components[1], components[2]])
 	var_ratio = compressed[2]
-	graph_scree_plot_variance(var_ratio)
+	# graph_scree_plot_variance(var_ratio)
+	graph_loadings_by_variance(components, var_ratio)
 
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
