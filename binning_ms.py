@@ -191,6 +191,18 @@ def compress_bins(filled_bins):
 	return compressed, components, var_ratio
 
 
+# uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
+# reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
+def compress_bins_sml(filled_bins):
+	filled_bins.pop(0)
+	np_bins = np.array(filled_bins)
+	pca = PCA(n_components=0.95, svd_solver='full')
+	compressed = pca.fit_transform(np_bins)
+	components = pca.components_
+	var_ratio = pca.explained_variance_ratio_
+	return compressed, components, var_ratio	
+
+
 # Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
 # 	m/z data on a histogram; 
 # Also plots the probability density function of the distribution (in red)
@@ -265,10 +277,8 @@ def graph_loadings_by_variance(components, variance_ratio):
 		comp_sum.append(nsum)
 
 	lbv = []
-	for n, c in enumerate(comp_sum):
+	for n,c in enumerate(comp_sum):
 		lbv.append(c * variance_ratio[n])
-
-	print(lbv)
 
 	# x = list(range(len(lbv)))
 	# plt.bar(x, lbv, 1, align='edge')
@@ -282,6 +292,42 @@ def graph_loadings_by_variance(components, variance_ratio):
 	plt.ylabel('Frequency')
 	plt.xlabel('Loadings x Variance')
 	plt.title('Histogram of Loadings x Variance for First 27 Axes')
+	plt.show()
+
+
+def graph_bins_vs_intens(binned_peaks):
+	binned_peaks.pop(0)
+	bin_pks_sml = []
+	for i in range(len(binned_peaks[0])):
+		sum = 0
+		for j in binned_peaks:
+			sum += j[i]
+		bin_pks_sml.append(sum)
+	x = list(range(len(bin_pks_sml)))
+	plt.bar(x, bin_pks_sml, 1, align='edge')
+	plt.ylabel('Sum of Intensities')
+	plt.xlabel('Bins/Axis')
+	plt.title('Sums of Intensities for Bins')
+	plt.show()
+
+
+def graph_loadsxvar_mostvar(components, variance_ratio):
+	comp_sum = []
+	for c in components:
+		nsum = 0
+		for j in c:
+			nsum = nsum + abs(j)
+		comp_sum.append(nsum)
+
+	lbv = []
+	for n,c in enumerate(comp_sum):
+		lbv.append(c * variance_ratio[n])
+
+	x = list(range(len(lbv)))
+	plt.scatter(x, lbv)
+	plt.xlabel('First 27 Axis')
+	plt.ylabel('|Loadings| x Variance')
+	plt.title('|Loadings| x Variance for Axis that Explain 95 Percent of Variance')
 	plt.show()
 
 
@@ -305,34 +351,57 @@ def main():
 	# # pickles the binned data
 	# pkld_bins = open('binned_ms.pkl', 'wb')
 	# pickle.dump(peak_matrix, pkld_bins)
-	# pkl_file.close()
+	# pkld_bins.close()
 
-	# # opens the pickled uncompressed data
-	# pkl_data = open('binned_ms.pkl', 'rb')
-	# binned_peaks = pickle.load(pkl_data)
-	# pkl_data.close()
+	# opens the pickled uncompressed data
+	pkl_data = open('binned_ms.pkl', 'rb')
+	binned_peaks = pickle.load(pkl_data)
+	pkl_data.close()
 
-	# # compresses peak_matrix with pca; graphs compression
+	# uncompressed data plots
+	graph_bins_vs_intens(binned_peaks)
+
+	# # compresses binned_peaks by only keeping 95% of explained variance
+	# labels_sml = binned_peaks.pop(0)
+	# compressed_sml = compress_bins_sml(binned_peaks)
+
+	# # compresses binned_peaks with pca; graphs compression
 	# labels = binned_peaks.pop(0)
 	# compressed = compress_bins(binned_peaks)
 
 	# # pickles the compressed data
 	# pkld_bins2 = open('compressed_binned_ms.pkl', 'wb')
 	# pickle.dump(compressed, pkld_bins2)
-	# pkl_file.close()
+	# pkld_bins2.close()
 
-	# opens the pickled compressed data
-	pkl_data2 = open('compressed_binned_ms.pkl', 'rb')
-	compressed = pickle.load(pkl_data2)
-	pkl_data2.close()
+	# # pickles the 95% of variance compressed data
+	# pkld_bins3 = open('compressed_binned_ms_95var.pkl', 'wb')
+	# pickle.dump(compressed_sml, pkld_bins3)
+	# pkld_bins3.close()
 
+	# # opens the pickled compressed data
+	# pkl_data2 = open('compressed_binned_ms.pkl', 'rb')
+	# compressed = pickle.load(pkl_data2)
+	# pkl_data2.close()
+
+	# opens the pickled compressed data (95% of variance)
+	# pkl_data3 = open('compressed_binned_ms_95var.pkl', 'rb')
+	# compressed_sml = pickle.load(pkl_data3)
+	# pkl_data3.close()
+
+	# # graphs of 95% of var compression
+	# graph_loadsxvar_mostvar(compressed_sml[1], compressed_sml[2])
+
+	# # graphs of compressed data
 	# compr = compressed[0]
 	# graph_compression(compr)
-	components = compressed[1]
+	# components = compressed[1]
 	# graph_components([components[0], components[1], components[2]])
-	var_ratio = compressed[2]
+	# var_ratio = compressed[2]
 	# graph_scree_plot_variance(var_ratio)
-	graph_loadings_by_variance(components[:27], var_ratio)
+	# graph_loadings_by_variance(components[:27], var_ratio)
+	# print(components)
+	# print(var_ratio)
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
