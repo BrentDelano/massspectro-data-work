@@ -14,7 +14,7 @@
 # Uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca for compression
 
 import pyteomics
-from pyteomics import mgf
+from pyteomics import mgf, mzxml
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,6 +43,17 @@ def read_mgf_binning(mgfFile):
 				intensities.append(spectrum['intensity array'].tolist())
 				identifiers.append([mgfFile + '_' + str(j+1)])
 	return mzs, intensities, identifiers
+
+# takes in .mzxml file paths as a string
+# outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
+#	the third a list of identifiers
+def read_mzxml(mzxmlFile):
+	mzs = []
+	intensities = []
+	with mzxml.read(mzxmlFile) as reader: 
+		for spectrum in reader:
+			mzs.append(spectrum['m/z array'].tolist())
+			intensities.append(spectrum['intensity array'].tolist())
 
 
 # finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
@@ -339,6 +350,9 @@ def main():
 	# intensities = mgf_contents[1] 
 	# identifiers = mgf_contents[2]
 
+	# reads the mzxml file
+	read_mzxml('./data/000020661_RG2_01_5517.mzXML')
+
 	# # adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
 	# mzs = create_gaussian_noise(mzs)
 
@@ -354,12 +368,12 @@ def main():
 	# pkld_bins.close()
 
 	# opens the pickled uncompressed data
-	pkl_data = open('binned_ms.pkl', 'rb')
-	binned_peaks = pickle.load(pkl_data)
-	pkl_data.close()
+	# pkl_data = open('binned_ms.pkl', 'rb')
+	# binned_peaks = pickle.load(pkl_data)
+	# pkl_data.close()
 
 	# uncompressed data plots
-	graph_bins_vs_intens(binned_peaks)
+	# graph_bins_vs_intens(binned_peaks)
 
 	# # compresses binned_peaks by only keeping 95% of explained variance
 	# labels_sml = binned_peaks.pop(0)
