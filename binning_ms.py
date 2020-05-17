@@ -32,16 +32,16 @@ def read_mgf_binning(mgfFile):
 	if (isinstance(mgfFile, list)):
 		for mgfs_n in mgfFile:
 			with mgf.MGF(mgfs_n) as reader:
-				for j, spectrum in enumerate(reader):
+				for j,spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
 					identifiers.append(mgfs_n + '_' + str(j+1))
 	else:
 		with mgf.MGF(mgfFile) as reader:
-			for j, spectrum in enumerate(reader):
+			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
-				identifiers.append([mgfFile + '_' + str(j+1)])
+				identifiers.append(mgfFile + '_' + str(j+1))
 	return mzs, intensities, identifiers
 
 # takes in .mzxml file paths as a string
@@ -50,10 +50,13 @@ def read_mgf_binning(mgfFile):
 def read_mzxml(mzxmlFile):
 	mzs = []
 	intensities = []
+	identifiers = []
 	with mzxml.read(mzxmlFile) as reader: 
-		for spectrum in reader:
+		for j,spectrum in enumerate(reader):
 			mzs.append(spectrum['m/z array'].tolist())
 			intensities.append(spectrum['intensity array'].tolist())
+			identifiers.append(mzxmlFile + '_' + str(j+1))
+	return mzs, intensities, identifiers
 
 
 # finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
@@ -270,6 +273,7 @@ def graph_components(components):
 	plt.show()
 
 
+# creates a scree plot of the variance for all the axis
 def graph_scree_plot_variance(variance_ratio):
 	x = list(range(1, len(variance_ratio) + 1))
 	plt.plot(x, variance_ratio, '-o')
@@ -279,6 +283,7 @@ def graph_scree_plot_variance(variance_ratio):
 	plt.show()
 
 
+# makes a bar chart and a histogram of abs(loadings)*variance for all axis
 def graph_loadings_by_variance(components, variance_ratio):
 	comp_sum = []
 	for c in components:
@@ -306,22 +311,32 @@ def graph_loadings_by_variance(components, variance_ratio):
 	plt.show()
 
 
+# makes a bar chart and a histogram of the sum of the intensities in each bin for all spectra
 def graph_bins_vs_intens(binned_peaks):
 	binned_peaks.pop(0)
-	bin_pks_sml = []
+	bin_pks_sum = []
 	for i in range(len(binned_peaks[0])):
 		sum = 0
 		for j in binned_peaks:
 			sum += j[i]
-		bin_pks_sml.append(sum)
-	x = list(range(len(bin_pks_sml)))
-	plt.bar(x, bin_pks_sml, 1, align='edge')
-	plt.ylabel('Sum of Intensities')
-	plt.xlabel('Bins/Axis')
-	plt.title('Sums of Intensities for Bins')
+		bin_pks_sum.append(math.log10(sum))
+
+	# x = list(range(len(bin_pks_sum)))
+	# plt.bar(x, bin_pks_sum, 1, align='edge')
+	# plt.ylabel('Sum of Intensities')
+	# plt.xlabel('Bins/Axis')
+	# plt.title('Sums of Intensities for Bins')
+	# plt.show()
+
+	r = [min(bin_pks_sum), max(bin_pks_sum)]
+	n, bins, patches = plt.hist(x=bin_pks_sum, bins=50, range=r, histtype='bar', facecolor='blue')
+	plt.ylabel('Frequency')
+	plt.xlabel('Log10(Sum of Intensities)')
+	plt.title('Histogram of Frequency of Sum of Intensities per Bin')
 	plt.show()
 
 
+# scatter plot of abs(loadings)*variance for the axis that explain 95% of the variance
 def graph_loadsxvar_mostvar(components, variance_ratio):
 	comp_sum = []
 	for c in components:
@@ -350,8 +365,11 @@ def main():
 	# intensities = mgf_contents[1] 
 	# identifiers = mgf_contents[2]
 
-	# reads the mzxml file
-	read_mzxml('./data/000020661_RG2_01_5517.mzXML')
+	# # reads the mzxml file and initializes lists of m/z ratios and respective intensities
+	# mzxml_contents = read_mzxml('./data/000020661_RG2_01_5517.mzXML')
+	# mzs = mzxml_contents[0]
+	# intensities = mzxml_contents[1]
+	# identifiers = mzxml_contents[2]
 
 	# # adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
 	# mzs = create_gaussian_noise(mzs)
@@ -363,17 +381,22 @@ def main():
 	# peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
 
 	# # pickles the binned data
-	# pkld_bins = open('binned_ms.pkl', 'wb')
+	# pkld_bins = open('binned_ms_mzxml.pkl', 'wb')
 	# pickle.dump(peak_matrix, pkld_bins)
 	# pkld_bins.close()
 
-	# opens the pickled uncompressed data
-	# pkl_data = open('binned_ms.pkl', 'rb')
-	# binned_peaks = pickle.load(pkl_data)
+	# opens the pickled .mgf uncompressed data
+	pkl_data = open('binned_ms.pkl', 'rb')
+	binned_peaks = pickle.load(pkl_data)
+	pkl_data.close()
+
+	# # opens the pickled .mzxml uncompressed data
+	# pkl_data = open('binned_ms_mzxml.pkl', 'rb')
+	# binned_peaks_mzxml = pickle.load(pkl_data)
 	# pkl_data.close()
 
 	# uncompressed data plots
-	# graph_bins_vs_intens(binned_peaks)
+	graph_bins_vs_intens(binned_peaks)
 
 	# # compresses binned_peaks by only keeping 95% of explained variance
 	# labels_sml = binned_peaks.pop(0)
