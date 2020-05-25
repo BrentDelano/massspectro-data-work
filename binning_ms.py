@@ -107,9 +107,13 @@ def find_bin(value, bins):
 # NOTE: the entry peaks[0] contains a list of identifiers for each column of the binned data (each column represents a spectra)
 #	the list of identifiers is a list of strings, each string in the following format: filepath_scan#
 # listIfMultMZ: optional - if true, then if there is >1 m/z in a bin, it will create a list in that bin; if false, it will add the intensities together
-def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
+# minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 10)
+# maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
+# also returns blockedIntens, which is the numeber of intensities that were filtered out by the threshold noise filtering
+def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False, minIntens=10, maxIntens=0):
 	peaks = []
 	peaks.append(identifiers)
+	blockedIntens = 0;
 	for i,mz in enumerate(mzs):
 		temp = [0] * len(bins)
 		for j,m in enumerate(mz):
@@ -124,8 +128,16 @@ def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
 						else:
 							temp[index] = [temp[index], intensities[i][j]]
 			else:
-				if (intensities[i][j] > 10):
-					temp[index] = temp[index] + intensities[i][j]
+				if (intensities[i][j] > minIntens):
+					if (maxIntens == 0):
+						temp[index] = temp[index] + intensities[i][j]
+					else:
+						if (intensities[i][j] < maxIntens):
+							temp[index] = temp[index] + intensities[i][j]
+						else:
+							blockedIntens += 1
+				else:
+					blockedIntens += 1
 		peaks.append(temp)
 
 	remove = []
@@ -145,7 +157,7 @@ def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False):
 				if (j == 1):
 					bins.pop(r)
 				p.pop(r)
-	return peaks
+	return peaks, blockedIntens
 
 
 # adds gaussian noise to the m/z dataset
@@ -378,25 +390,25 @@ def main():
 	# bins = create_bins(mzs, 0.3)
 
 	# # creates peaks matrix
-	# peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)
+	# peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)[0]
 
 	# # pickles the binned data
 	# pkld_bins = open('binned_ms_mzxml.pkl', 'wb')
 	# pickle.dump(peak_matrix, pkld_bins)
 	# pkld_bins.close()
 
-	# opens the pickled .mgf uncompressed data
-	pkl_data = open('binned_ms.pkl', 'rb')
-	binned_peaks = pickle.load(pkl_data)
-	pkl_data.close()
-
-	# # opens the pickled .mzxml uncompressed data
-	# pkl_data = open('binned_ms_mzxml.pkl', 'rb')
-	# binned_peaks_mzxml = pickle.load(pkl_data)
+	# # opens the pickled .mgf uncompressed data
+	# pkl_data = open('binned_ms.pkl', 'rb')
+	# binned_peaks = pickle.load(pkl_data)
 	# pkl_data.close()
 
+	# opens the pickled .mzxml uncompressed data
+	pkl_data = open('binned_ms_mzxml.pkl', 'rb')
+	binned_peaks_mzxml = pickle.load(pkl_data)
+	pkl_data.close()
+
 	# uncompressed data plots
-	graph_bins_vs_intens(binned_peaks)
+	graph_bins_vs_intens(binned_peaks_mzxml)
 
 	# # compresses binned_peaks by only keeping 95% of explained variance
 	# labels_sml = binned_peaks.pop(0)
