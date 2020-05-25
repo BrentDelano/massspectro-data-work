@@ -10,6 +10,33 @@ from sklearn.decomposition import PCA
 import pickle
 import binning_ms
 
+# takes in either .mgf files or an .mzxml file, reads it, applies noise filtering techniques, then outputs 2D lists of m/z arrays and intensities
+# if method = 0: set_min_intens() ** ALSO MUST INITIALIZE min_intens **
+# if method = 1 (default): choose_top_intensities() ** ALSO MUST INITIALIZE binsize and peaks_per_bin **
+# if method = 2: create_gaussian_noise()
+def noise_filteration(method=1, mgfs='', mzxml='', min_intens=0, binsize=0, peaks_per_bin=0):
+	mzxml_data = []
+	if not mgfs:
+		if not mzxml:
+			return -1
+		else:
+			mzxml_data = read_mzxml(mzxml)
+	else:
+		mzxml_data = read_mgfs(mgfs)
+	mzs, intensities = mzxml_data[0], mzxml_data[1]
+
+	if method = 0:
+		set_min_intens(mzs, intensities, min_intens)
+	elif method = 1:
+		choose_top_intensities(mzs, intensities, binsize, peaks_per_bin)
+	elif method = 2:
+		return create_gaussian_noise(mzs)
+	else
+		return -1
+
+	return mzs, intensities
+
+
 # reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string
 # returns three lists: 
 #	mzs: a list of lists of the m/z ratios of the spectra
@@ -18,7 +45,7 @@ import binning_ms
 def read_mgfs(mgfs):
 	binning_mgf = binning_ms.read_mgf_binning(mgfs)
 	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
-	return mzs, intensities, identifiers
+	return mzs, intensities
 
 
 # reads in an mzxml file
@@ -29,7 +56,7 @@ def read_mgfs(mgfs):
 def read_mzxml(mzxml):
 	binning_mgf = binning_ms.read_mgf_binning(mzxml)
 	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
-	return mzs, intensities, identifiers
+	return mzs, intensities
 
 
 # removes any peaks with an intensity less than min_intens
@@ -125,7 +152,6 @@ def create_gaussian_noise(mzs):
 def main():
 	mgf_stuff = read_mgfs('./data/HMDB.mgf')
 	mzs, intensities = mgf_stuff[0], mgf_stuff[1]
-	choose_top_intensities(mzs, intensities, 100, 5)
 
 if __name__ == "__main__":
 	main()
