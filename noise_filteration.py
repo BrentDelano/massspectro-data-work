@@ -14,7 +14,7 @@ import binning_ms
 # if method = 0: set_min_intens() ** ALSO MUST INITIALIZE min_intens **
 # if method = 1 (default): choose_top_intensities() ** ALSO MUST INITIALIZE binsize and peaks_per_bin **
 # if method = 2: create_gaussian_noise()
-def noise_filteration(method=1, mgfs='', mzxml='', min_intens=0, binsize=0, peaks_per_bin=0):
+def noise_filteration(method=1, mgf='', mzxml='', min_intens=0, binsize=0, peaks_per_bin=0):
 	mzxml_data = []
 	if not mgfs:
 		if not mzxml:
@@ -25,13 +25,13 @@ def noise_filteration(method=1, mgfs='', mzxml='', min_intens=0, binsize=0, peak
 		mzxml_data = read_mgfs(mgfs)
 	mzs, intensities = mzxml_data[0], mzxml_data[1]
 
-	if method = 0:
+	if method == 0:
 		set_min_intens(mzs, intensities, min_intens)
-	elif method = 1:
+	elif method == 1:
 		choose_top_intensities(mzs, intensities, binsize, peaks_per_bin)
-	elif method = 2:
+	elif method == 2:
 		return create_gaussian_noise(mzs)
-	else
+	else:
 		return -1
 
 	return mzs, intensities
@@ -150,8 +150,9 @@ def create_gaussian_noise(mzs):
 
 # for testing
 def main():
-	mgf_stuff = read_mgfs('./data/HMDB.mgf')
-	mzs, intensities = mgf_stuff[0], mgf_stuff[1]
+	# mgf_stuff = read_mgfs('./data/HMDB.mgf')
+	# mzs, intensities = mgf_stuff[0], mgf_stuff[1]
+	read_mgf_binning('./data/HMDB.mgf')
 
 if __name__ == "__main__":
 	main()
