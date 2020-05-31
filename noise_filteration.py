@@ -10,19 +10,19 @@ from sklearn.decomposition import PCA
 import pickle
 import binning_ms
 
-# takes in either .mgf files or an .mzxml file, reads it, applies noise filtering techniques, then outputs 2D lists of m/z arrays and intensities
+# takes in either .mgf files or an .mzxml file, reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
 # if method = 0: set_min_intens() ** ALSO MUST INITIALIZE min_intens **
 # if method = 1 (default): choose_top_intensities() ** ALSO MUST INITIALIZE binsize and peaks_per_bin **
 # if method = 2: create_gaussian_noise()
 def noise_filteration(method=1, mgf='', mzxml='', min_intens=0, binsize=0, peaks_per_bin=0):
 	mzxml_data = []
-	if not mgfs:
+	if not mgf:
 		if not mzxml:
 			return -1
 		else:
 			mzxml_data = read_mzxml(mzxml)
 	else:
-		mzxml_data = read_mgfs(mgfs)
+		mzxml_data = read_mgfs(mgf)
 	mzs, intensities = mzxml_data[0], mzxml_data[1]
 
 	if method == 0:
@@ -34,7 +34,7 @@ def noise_filteration(method=1, mgf='', mzxml='', min_intens=0, binsize=0, peaks
 	else:
 		return -1
 
-	return mzs, intensities
+	write_to_mgf(mgf, mzs, intensities)
 
 
 # reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string
@@ -57,6 +57,18 @@ def read_mzxml(mzxml):
 	binning_mgf = binning_ms.read_mgf_binning(mzxml)
 	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
 	return mzs, intensities
+
+
+# takes in a .mgf file path, copies it, and creates a .mgf file with the same spectrum but with diffenent mzs and intensities as specified by parameters
+def write_to_mgf(mgfFile, mzs, intensities):
+	spectrum = []
+	with mgf.MGF(mgfFile) as reader:
+			for j, spectra in enumerate(reader):
+				s = spectra.copy()
+				s['m/z array'] = mzs[j]
+				s['intensity array'] = intensities[j]
+				spectrum.append(s)
+	mgf.write(spectra=spectrum, output='data/noise_filtered.mgf')
 
 
 # removes any peaks with an intensity less than min_intens
@@ -152,7 +164,8 @@ def create_gaussian_noise(mzs):
 def main():
 	# mgf_stuff = read_mgfs('./data/HMDB.mgf')
 	# mzs, intensities = mgf_stuff[0], mgf_stuff[1]
-	read_mgf_binning('./data/HMDB.mgf')
+	# read_mgf_binning('./data/HMDB.mgf')
+	noise_filteration(mgf='./data/HMDB.mgf', binsize=100, peaks_per_bin=5)
 
 if __name__ == "__main__":
 	main()

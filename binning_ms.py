@@ -160,35 +160,6 @@ def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False, 
 	return peaks, blockedIntens
 
 
-# adds gaussian noise to the m/z dataset
-def create_gaussian_noise(mzs):
-	mzs_od = []
-	for mz in mzs:
-		for m in mz:
-			mzs_od.append(m)
-
-	mu = np.mean(mzs_od)
-	sigma = np.std(mzs_od)
-
-	noise = np.random.normal(mu, sigma, len(mzs_od))
-	noisy = mzs_od + noise
-
-	index = 0
-	noisy_shaped = []
-	i = 0
-	while i < len(mzs):
-		temp = []
-		j = 0
-		while j < len(mzs[i]):
-			temp.append(noisy[index])
-			index += 1
-			j += 1
-		noisy_shaped.append(temp)
-		i += 1
-
-	return noisy_shaped
-
-
 # given a list of lists of m/z data, it will return the minimum and maximum m/z values in the lists
 def findMinMax(mzs):
 	minmz = 0
@@ -369,10 +340,10 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	plt.show()
 
 
-# for testing
-def main():
+# # for testing
+# def main():
 	# # reads mgf file and initializes lists of m/z ratios and respective intensities
-	# mgf_contents = read_mgf_binning(['./data/HMDB.mgf','./data/agp500.mgf','./data/agp3k.mgf','./data/QUERT.mgf'])
+	# mgf_contents = read_mgf_binning('./data/HMDB.mgf')
 	# mzs = mgf_contents[0]
 	# intensities = mgf_contents[1] 
 	# identifiers = mgf_contents[2]
@@ -402,13 +373,13 @@ def main():
 	# binned_peaks = pickle.load(pkl_data)
 	# pkl_data.close()
 
-	# opens the pickled .mzxml uncompressed data
-	pkl_data = open('binned_ms_mzxml.pkl', 'rb')
-	binned_peaks_mzxml = pickle.load(pkl_data)
-	pkl_data.close()
+	# # opens the pickled .mzxml uncompressed data
+	# pkl_data = open('binned_ms_mzxml.pkl', 'rb')
+	# binned_peaks_mzxml = pickle.load(pkl_data)
+	# pkl_data.close()
 
-	# uncompressed data plots
-	graph_bins_vs_intens(binned_peaks_mzxml)
+	# # uncompressed data plots
+	# graph_bins_vs_intens(binned_peaks_mzxml)
 
 	# # compresses binned_peaks by only keeping 95% of explained variance
 	# labels_sml = binned_peaks.pop(0)
@@ -454,5 +425,5 @@ def main():
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
-if __name__ == "__main__":
-	main()
+# if __name__ == "__main__":
+# 	main()
