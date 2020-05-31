@@ -25,16 +25,23 @@ def noise_filteration(method=1, mgf='', mzxml='', min_intens=0, binsize=0, peaks
 		mzxml_data = read_mgfs(mgf)
 	mzs, intensities = mzxml_data[0], mzxml_data[1]
 
+	remaff = False
+	removed = 0
+	affected = 0
 	if method == 0:
 		set_min_intens(mzs, intensities, min_intens)
 	elif method == 1:
-		choose_top_intensities(mzs, intensities, binsize, peaks_per_bin)
+		remaff = True
+		ctp = choose_top_intensities(mzs, intensities, binsize, peaks_per_bin)
+		removed, affected = ctp[0], ctp[1]
 	elif method == 2:
 		return create_gaussian_noise(mzs)
 	else:
 		return -1
 
 	write_to_mgf(mgf, mzs, intensities)
+	if remaff:
+		print('Number of Removed Spectra:', removed, '\nNumber of Affected Spectra:', affected)
 
 
 # reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string

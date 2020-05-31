@@ -71,22 +71,32 @@ def read_mgf_cosine(mgfFile, specific_spectra=0):
 # the .txt file has a nxn array with each row representing a spectra and each column also representing a spectra
 #	therefore, [i, j] is the cosine score between spectra i and spectra j
 def calc_cos_scores(spectra, masses):
+	if (len(spectra) != len(masses)):
+		raise IndexError('spectra and masses must be lists of the same length')
 	cosScoreTxt = open('cos_score_data', 'w')
 	cosScores = []
 	cosScoreTxt.write('[')
 	for i,rSpec in enumerate(spectra):
 		cosScoreTxt.write('[')
+		temp = []
 		for j,cSpec in enumerate(spectra):
-			if (j > 0 and j < len(spectra)):
+			if j > 0 and j < len(spectra):
 				cosScoreTxt.write(', ')
-			if (i == j):
+			if i == j:
 				cosScoreTxt.write('1.0')
+				temp.append(1.0)
 			else:
 				x = spectrum_alignment.score_alignment(rSpec, cSpec, masses[i], masses[j], 0.02)[0]
 				cosScoreTxt.write(str(x))
-		cosScoreTxt.write(']')
+				temp.append(x)
+		if i < len(spectra)-1:
+			cosScoreTxt.write('], ')
+		else:
+			cosScoreTxt.write(']')
+		cosScores.append(temp)
 	cosScoreTxt.write(']')
 	cosScoreTxt.close()
+	return cosScores
 
 	# # calculate first nxn cosine scores
 	# cosScoreTxt.write('[')
@@ -104,10 +114,11 @@ def calc_cos_scores(spectra, masses):
 	# cosScoreTxt.write(']')
 	# cosScoreTxt.close()
 
-# # for testing
-# def main():
-# 	mgf_data = read_mgf_cosine(['./data/HMDB.mgf', './data/agp500.mgf'], [[1,1], [1,2], [2,1], [2,2]])
-# 	print(mgf_data[0])
+# for testing
+def main():
+	r = read_mgf_cosine('./tests/test3.mgf')
+	print(r)
+	print(calc_cos_scores(r[0], r[1]))
 
-# if __name__ == "__main__":
-# 	main()
+if __name__ == "__main__":
+	main()
