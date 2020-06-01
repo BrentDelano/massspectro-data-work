@@ -4,8 +4,6 @@
 
 import unittest
 import cos_score
-import pyteomics
-from pyteomics import mgf
 
 class TestCosineScore(unittest.TestCase):
 	def test_read_mgf_cosine(self):
@@ -24,4 +22,3 @@ class TestCosineScore(unittest.TestCase):
 		with self.assertRaises(IndexError):
 			cos_score.calc_cos_scores(test[0], [100, 200])
 		self.assertListEqual(cos_score.calc_cos_scores(test[0], test[1]), ans)
-		

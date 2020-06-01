@@ -408,13 +408,13 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	plt.show()
 
 
-# for testing
-def main():
-	# reads mgf file and initializes lists of m/z ratios and respective intensities
-	mgf_contents = read_mgf_binning(['./tests/test1.mgf', './tests/test2.mgf', './tests/test3.mgf'])
-	bins = create_bins(mgf_contents[0], 40)
-	test = create_peak_matrix(mgf_contents[0], mgf_contents[1], mgf_contents[2], bins, listIfMultMZ=False, minIntens=5, maxIntens=0)
-	print(compress_bins_sml(test[0]))
+# # for testing
+# def main():
+	# # reads mgf file and initializes lists of m/z ratios and respective intensities
+	# mgf_contents = read_mgf_binning(['./tests/test1.mgf', './tests/test2.mgf', './tests/test3.mgf'])
+	# bins = create_bins(mgf_contents[0], 40)
+	# test = create_peak_matrix(mgf_contents[0], mgf_contents[1], mgf_contents[2], bins, listIfMultMZ=False, minIntens=5, maxIntens=0)
+	# print(compress_bins_sml(test[0]))
 
 	# # reads the mzxml file and initializes lists of m/z ratios and respective intensities
 	# mzxml_contents = read_mzxml('./data/000020661_RG2_01_5517.mzXML')
@@ -493,5 +493,5 @@ def main():
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
-if __name__ == "__main__":
-	main()
+# if __name__ == "__main__":
+# 	main()

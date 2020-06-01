@@ -4,8 +4,6 @@
 
 import unittest
 import binning_ms
-import pyteomics
-from pyteomics import mgf
 
 class TestBinningMS(unittest.TestCase):
 	def test_read_mgf_binning(self):
