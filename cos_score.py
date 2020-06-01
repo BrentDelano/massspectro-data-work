@@ -19,8 +19,8 @@ import spectrum_alignment
 def read_mgf_cosine(mgfFile, specific_spectra=0):
 	spectra = []
 	masses = []
-	if (specific_spectra == 0):
-		if (isinstance(mgfFile, list)):
+	if specific_spectra == 0:
+		if isinstance(mgfFile, list):
 			for mgfs_n in mgfFile:
 				with mgf.MGF(mgfs_n) as reader:
 					for spectrum in reader:
@@ -38,16 +38,16 @@ def read_mgf_cosine(mgfFile, specific_spectra=0):
 						temp.append([spectrum['m/z array'][i], spectrum['intensity array'][i]])
 					spectra.append(temp)
 	else:
-		if (isinstance(mgfFile, list)):
+		if isinstance(mgfFile, list):
 			for n, mgfs_n in enumerate(mgfFile):
 				with mgf.MGF(mgfs_n) as reader:
 					s_in_mgf = []
 					for s in specific_spectra:
-						if (s[0] - 1 == n):
+						if s[0] - 1 == n:
 							s_in_mgf.append(s[1])
 					for k, spectrum in enumerate(reader):
 						for j in s_in_mgf:
-							if (k == j - 1):
+							if k == j - 1:
 								masses.append(spectrum['params']['pepmass'][0])
 								temp = []
 								for i in range(len(spectrum['m/z array'])):
@@ -57,7 +57,7 @@ def read_mgf_cosine(mgfFile, specific_spectra=0):
 			with mgf.MGF(mgfFile) as reader:
 				for k, spectrum in enumerate(reader):
 					for j in specific_spectra:
-						if (k == j - 1):
+						if k == j - 1:
 							masses.append(spectrum['params']['pepmass'][0])
 							temp = []
 							for i in range(len(spectrum['m/z array'])):
@@ -71,7 +71,7 @@ def read_mgf_cosine(mgfFile, specific_spectra=0):
 # the .txt file has a nxn array with each row representing a spectra and each column also representing a spectra
 #	therefore, [i, j] is the cosine score between spectra i and spectra j
 def calc_cos_scores(spectra, masses):
-	if (len(spectra) != len(masses)):
+	if len(spectra) != len(masses):
 		raise IndexError('spectra and masses must be lists of the same length')
 	cosScoreTxt = open('cos_score_data', 'w')
 	cosScores = []
@@ -103,9 +103,9 @@ def calc_cos_scores(spectra, masses):
 	# for i in range(10):
 	# 	cosScoreTxt.write('[')
 	# 	for j in range(10):
-	# 		if (j > 0 and j < 10):
+	# 		if j > 0 and j < 10:
 	# 			cosScoreTxt.write(', ')
-	# 		if (i == j):
+	# 		if i == j:
 	# 			cosScoreTxt.write('1.0')
 	# 		else:
 	# 			x = spectrum_alignment.score_alignment(spectra[i], spectra[j], masses[i], masses[j], 0.02)[0]
@@ -114,11 +114,11 @@ def calc_cos_scores(spectra, masses):
 	# cosScoreTxt.write(']')
 	# cosScoreTxt.close()
 
-# for testing
-def main():
-	r = read_mgf_cosine('./tests/test3.mgf')
-	print(r)
-	print(calc_cos_scores(r[0], r[1]))
+# # for testing
+# def main():
+# 	r = read_mgf_cosine('./tests/test3.mgf')
+# 	print(r)
+# 	print(calc_cos_scores(r[0], r[1]))
 
-if __name__ == "__main__":
-	main()
+# if __name__ == "__main__":
+# 	main()

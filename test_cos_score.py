@@ -24,3 +24,4 @@ class TestCosineScore(unittest.TestCase):
 		with self.assertRaises(IndexError):
 			cos_score.calc_cos_scores(test[0], [100, 200])
 		self.assertListEqual(cos_score.calc_cos_scores(test[0], test[1]), ans)
+		

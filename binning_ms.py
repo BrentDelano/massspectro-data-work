@@ -29,7 +29,7 @@ def read_mgf_binning(mgfFile):
 	mzs = []
 	intensities = []
 	identifiers = []
-	if (isinstance(mgfFile, list)):
+	if isinstance(mgfFile, list):
 		for mgfs_n in mgfFile:
 			with mgf.MGF(mgfs_n) as reader:
 				for j,spectrum in enumerate(reader):
@@ -63,40 +63,87 @@ def read_mzxml(mzxmlFile):
 def get_min_binsize(mzs):
 	min = 0
 	for spec in mzs:
-		temp = copy.copy(spec)
-		temp.sort()
-		if (min == 0):
-			min = temp[1]-temp[0]
-		for n,mz in enumerate(temp):
-			if (n < len(temp) - 1):
-				diff = abs(mz - temp[n+1])
-				if (diff < min):
-					min = diff
+		if isinstance(spec, list):
+			temp = copy.copy(spec)
+			temp.sort()
+			if min == 0:
+				min = temp[1]-temp[0]
+			for n,mz in enumerate(temp):
+				if n < len(temp) - 1:
+					diff = abs(mz - temp[n+1])
+					if diff < min:
+						min = diff
+		else:
+			if isinstance(mzs, list):
+				for j,m in enumerate(mzs):
+					if j == 0:
+						min = mzs[j+1] - m
+					else:
+						if j < len(mzs) - 1:
+ 							diff = mzs[j+1] - m
+ 							if diff < min:
+ 								min = diff
+				break
+			else:
+				raise TypeError('mzs should either be a 1D or 2D list')
 	return min
 
 
 # takes in m/z ratios as a list of lists (first dimension is lists representing the spectra, second dimension are the m/z values in each spectra list
 # creates a list of lists of bins of size binsize
 def create_bins(mzs, binsize):
-	minMax = findMinMax(mzs)
-	minmz = minMax[0] - 0.1
-	maxmz = minMax[1] + 0.1
-	bins = []
-	quantity = math.ceil((maxmz-minmz)/binsize)
-	i = 0;
-	while (i < quantity):
-		bins.append([i*binsize + minmz, (i+1)*binsize + minmz])
-		i = i+1
-	return bins
+	if binsize <= 0:
+		raise ValueError('binsize should be >= 0')
+	elif isinstance(mzs, list):
+		minmz = 0
+		maxmz = 0
+		if isinstance(mzs[0], list):
+			minMax = findMinMax(mzs)
+			minmz = minMax[0] - 0.1
+			maxmz = minMax[1] + 0.1
+		else:
+			minmz = min(mzs)
+			maxmz = max(mzs)
+		bins = []
+		quantity = math.ceil((maxmz-minmz)/binsize)
+		i = 0;
+		while (i < quantity):
+			bins.append([i*binsize + minmz, (i+1)*binsize + minmz])
+			i = i+1
+		return bins
+	else:	
+		raise TypeError('mzs should either be a 1D or 2D list')
+
+
+# given a list of lists of m/z data, it will return the minimum and maximum m/z values in the lists
+def findMinMax(mzs):
+	minmz = 0
+	maxmz = 0
+	for i,mz in enumerate(mzs):
+		if i == 0:
+			minmz = mz[0]
+			maxmz = mz[0]
+		for m in mz:
+			if m < minmz:
+				minmz = m
+			if m > maxmz:
+				maxmz = m
+	return minmz, maxmz
 
 
 # from https://www.python-course.eu/pandas_python_binning.php
 # finds the bin that a given value fits into
 def find_bin(value, bins):
-    for i in range(0, len(bins)):
-        if bins[i][0] <= value < bins[i][1]:
-            return i
-    return -1
+	if isinstance(bins, list):
+		if isinstance(bins[0], list):
+		    for i in range(0, len(bins)):
+		        if bins[i][0] <= value < bins[i][1]:
+		            return i
+		    raise ValueError('Value does not fall into bins')
+		else: 
+			raise TypeError('Bins should be a 2D list')
+	else:
+		raise TypeError('Bins should be a 2D list')
 
 	
 # creates a matrix that finds the bins that the m/z ratios in a spectra fall into
@@ -111,93 +158,114 @@ def find_bin(value, bins):
 # maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
 # also returns blockedIntens, which is the numeber of intensities that were filtered out by the threshold noise filtering
 def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False, minIntens=10, maxIntens=0):
-	peaks = []
-	peaks.append(identifiers)
-	blockedIntens = 0;
-	for i,mz in enumerate(mzs):
-		temp = [0] * len(bins)
-		for j,m in enumerate(mz):
-			index = find_bin(m,bins)
-			if (listIfMultMZ):
-				if (intensities[i][j] > 10):
-					if (temp[index] == 0):
-						temp[index] = intensities[i][j]
-					else:
-						if (isinstance(temp[index], list)):
-							temp[index].append(intensities[i][j])
-						else:
-							temp[index] = [temp[index], intensities[i][j]]
-			else:
-				if (intensities[i][j] > minIntens):
-					if (maxIntens == 0):
-						temp[index] = temp[index] + intensities[i][j]
-					else:
-						if (intensities[i][j] < maxIntens):
-							temp[index] = temp[index] + intensities[i][j]
+	if isinstance(mzs, list) and isinstance(intensities, list):
+		if isinstance(mzs[0], list) and isinstance(intensities[0], list):
+			peaks = []
+			peaks.append(identifiers)
+			blockedIntens = 0;
+			for i,mz in enumerate(mzs):
+				temp = [0] * len(bins)
+				for j,m in enumerate(mz):
+					index = find_bin(m,bins)
+					if listIfMultMZ:
+						if intensities[i][j] > minIntens:
+							if maxIntens == 0:
+								if temp[index] == 0:
+									temp[index] = intensities[i][j]
+								else:
+									if isinstance(temp[index], list):
+										temp[index].append(intensities[i][j])
+									else:
+										temp[index] = [temp[index], intensities[i][j]]
+							else:
+								if minIntens >= maxIntens:
+									raise ValueError('minIntens must be < maxIntens')
+								if intensities[i][j] < maxIntens:
+									if temp[index] == 0:
+										temp[index] = intensities[i][j]
+									else:
+										if isinstance(temp[index], list):
+											temp[index].append(intensities[i][j])
+										else:
+											temp[index] = [temp[index], intensities[i][j]]
+								else:
+									blockedIntens += 1
 						else:
 							blockedIntens += 1
-				else:
-					blockedIntens += 1
-		peaks.append(temp)
+					else:
+						if intensities[i][j] > minIntens:
+							if maxIntens == 0:
+								temp[index] = temp[index] + intensities[i][j]
+							else:
+								if minIntens >= maxIntens:
+									raise ValueError('minIntens must be < maxIntens')
+								if intensities[i][j] < maxIntens:
+									temp[index] = temp[index] + intensities[i][j]
+								else:
+									blockedIntens += 1
+						else:
+							blockedIntens += 1
+				peaks.append(temp)
 
-	remove = []
-	for i in range(len(peaks[1])):
-		delete = True
-		for j,p in enumerate(peaks):
-			if (j != 0):
-				if (p[i] != 0):
-					delete = False
-					break
-		if (delete == True):
-			remove.append(i)
+			remove = []
+			for i in range(len(peaks[1])):
+				delete = True
+				for j,p in enumerate(peaks):
+					if j != 0:
+						if p[i] != 0:
+							delete = False
+							break
+				if delete == True:
+					remove.append(i)
 
-	for j,p in enumerate(peaks):
-		if (j != 0):
-			for r in reversed(remove):
-				if (j == 1):
-					bins.pop(r)
-				p.pop(r)
-	return peaks, blockedIntens
-
-
-# given a list of lists of m/z data, it will return the minimum and maximum m/z values in the lists
-def findMinMax(mzs):
-	minmz = 0
-	maxmz = 0
-	for i,mz in enumerate(mzs):
-		if (i == 0):
-			minmz = mz[0]
-			maxmz = mz[0]
-		for m in mz:
-			if (m < minmz):
-				minmz = m
-			if (m > maxmz):
-				maxmz = m
-	return minmz, maxmz
+			for j,p in enumerate(peaks):
+				if j != 0:
+					for r in reversed(remove):
+						if j == 1:
+							bins.pop(r)
+						p.pop(r)
+			return peaks, blockedIntens
+		else: 
+			raise TypeError('mzs and intensities should be 2D lists')
+	else:
+		raise TypeError('mzs and intensities should be 2D lists')
 
 
 # uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 # reduces the number of bins by pca
 def compress_bins(filled_bins):
-	filled_bins.pop(0)
-	np_bins = np.array(filled_bins)
-	pca = PCA(n_components=len(filled_bins[0])-1)
-	compressed = pca.fit_transform(np_bins)
-	components = pca.components_
-	var_ratio = pca.explained_variance_ratio_
-	return compressed, components, var_ratio
-
+	if isinstance(filled_bins, list):
+		if isinstance(filled_bins[0], list):
+			if isinstance(filled_bins[0][0], str):
+				filled_bins.pop(0)
+			np_bins = np.array(filled_bins)
+			pca = PCA(n_components=len(filled_bins[0])-1)
+			compressed = pca.fit_transform(np_bins)
+			components = pca.components_
+			var_ratio = pca.explained_variance_ratio_
+			return compressed, components, var_ratio
+		else:
+			raise TypeError('filled_bins should be a 2D list')
+	else:
+		raise TypeError('filled_bins should be a 2D list')
 
 # uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 # reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
 def compress_bins_sml(filled_bins):
-	filled_bins.pop(0)
-	np_bins = np.array(filled_bins)
-	pca = PCA(n_components=0.95, svd_solver='full')
-	compressed = pca.fit_transform(np_bins)
-	components = pca.components_
-	var_ratio = pca.explained_variance_ratio_
-	return compressed, components, var_ratio	
+	if isinstance(filled_bins, list):
+		if isinstance(filled_bins[0], list):
+			if isinstance(filled_bins[0][0], str):
+				filled_bins.pop(0)
+			np_bins = np.array(filled_bins)
+			pca = PCA(n_components=0.95, svd_solver='full')
+			compressed = pca.fit_transform(np_bins)
+			components = pca.components_
+			var_ratio = pca.explained_variance_ratio_
+			return compressed, components, var_ratio	
+		else:
+			raise TypeError('filled_bins should be a 2D list')
+	else:
+		raise TypeError('filled_bins should be a 2D list')
 
 
 # Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
@@ -340,13 +408,13 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	plt.show()
 
 
-# # for testing
-# def main():
-	# # reads mgf file and initializes lists of m/z ratios and respective intensities
-	# mgf_contents = read_mgf_binning('./data/HMDB.mgf')
-	# mzs = mgf_contents[0]
-	# intensities = mgf_contents[1] 
-	# identifiers = mgf_contents[2]
+# for testing
+def main():
+	# reads mgf file and initializes lists of m/z ratios and respective intensities
+	mgf_contents = read_mgf_binning(['./tests/test1.mgf', './tests/test2.mgf', './tests/test3.mgf'])
+	bins = create_bins(mgf_contents[0], 40)
+	test = create_peak_matrix(mgf_contents[0], mgf_contents[1], mgf_contents[2], bins, listIfMultMZ=False, minIntens=5, maxIntens=0)
+	print(compress_bins_sml(test[0]))
 
 	# # reads the mzxml file and initializes lists of m/z ratios and respective intensities
 	# mzxml_contents = read_mzxml('./data/000020661_RG2_01_5517.mzXML')
@@ -425,5 +493,5 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
-# if __name__ == "__main__":
-# 	main()
+if __name__ == "__main__":
+	main()
