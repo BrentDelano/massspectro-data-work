@@ -8,13 +8,30 @@ import math
 import numpy as np
 from sklearn.decomposition import PCA
 import pickle
+import logging
 import binning_ms
 
-# takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
-# if method = 0: set_min_intens() ** ALSO MUST INITIALIZE min_intens **
-# if method = 1 (default): choose_top_intensities() ** ALSO MUST INITIALIZE binsize and peaks_per_bin **
-# if method = 2: create_gaussian_noise()
 def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks_per_bin=0, filename='data/noise_filtered.mgf'):
+	"""takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
+		
+		Args:
+			mgf: filepath to a .mgf file
+			mzxml: filepath to a .mzxml file
+			method:
+				if method==0: set_min_intens()
+					min_intens: minimum intensity cutoff - must initialize if method==0
+				if method==1 (default): choose_top_intensities()
+					binsize: size of bins for which spectra fall into - must initialize if method==1
+					peaks_per_bin: number of spectra to keep in each bin - must initialize if method==1
+				if method==2: create_gaussian_noise()
+			filename: .mgf filename to which new spectra are placed into
+
+		Returns:
+			mzs: 2D list of kept/altered m/z ratios of spectra
+			intensities: 2D list of kept/altered intensity values corresponding to each m/z ratio
+			noise_filteration_count.Log: a .Log file reporting the number of affected spectra and removed peaks (only if method==0 or method==1)
+	"""
+
 	data = []
 	if not mgf:
 		if not mzxml:
@@ -29,7 +46,8 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 	removed = 0
 	affected = 0
 	if method == 0:
-		set_min_intens(mzs, intensities, min_intens)
+		remaff = True
+		removed = set_min_intens(mzs, intensities, min_intens)
 	elif method == 1:
 		remaff = True
 		if binsize == 0 or peaks_per_bin == 0:
@@ -43,35 +61,54 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 
 	write_to_mgf(mgf, mzs, intensities, filename)
 	if remaff:
-		print('Number of Removed Spectra:', removed, '\nNumber of Affected Spectra:', affected)
+		logging.basicConfig(filename='noise_filteration_count.Log', level=logging.DEBUG, filemode='w')
+		log = logging.getLogger()
+		message = 'Number of Removed Spectra: %s \nNumber of Affected Spectra: %s' % (removed, affected)
+		log.info(message)
 
 	return mzs, intensities
 
 
-# reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string
-# returns three lists: 
-#	mzs: a list of lists of the m/z ratios of the spectra
-#	intensities: a list of lists of the intensities of the spectra
-# 	identifiers: identifiers for the file and scan #
 def read_mgfs(mgfs):
+	"""reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string
+
+		Args:
+			mgfs: filepath to a .mgf file, or a list of filepaths
+
+		Returns:
+			mzs: a list of lists of the m/z ratios of the spectra
+			intensities: a list of lists of the intensities of the spectra
+	"""
 	binning_mgf = binning_ms.read_mgf_binning(mgfs)
 	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
 	return mzs, intensities
 
 
-# reads in an mzxml file
-# returns three lists: 
-#	mzs: a list of lists of the m/z ratios of the spectra
-#	intensities: a list of lists of the intensities of the spectra
-# 	identifiers: identifiers for the file and scan #
 def read_mzxml(mzxml):
+	"""reads an mzxml file
+
+		Args:
+			mzxml: filepath to a .mzxml file
+
+		Returns:
+			mzs: a list of lists of the m/z ratios of the spectra
+			intensities: a list of lists of the intensities of the spectra
+	"""
+
 	binning_mgf = binning_ms.read_mgf_binning(mzxml)
 	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
 	return mzs, intensities
 
 
-# takes in a .mgf file path, copies it, and creates a .mgf file with the same spectrum but with diffenent mzs and intensities as specified by parameters
 def write_to_mgf(mgfFile, mzs, intensities, filename):
+	"""writes data to a specified .mgf file
+
+		Args:
+			mgfFile: original .mgf file which unspecified data is copied from
+			mzs: 2D list of m/z ratios to be copied to new file
+			intensities: 2D list of intensities to be copied to new file
+			filename: filepath to create new .mgf file
+	"""
 	spectrum = []
 	with mgf.MGF(mgfFile) as reader:
 			for j, spectra in enumerate(reader):
@@ -82,9 +119,18 @@ def write_to_mgf(mgfFile, mzs, intensities, filename):
 	mgf.write(spectra=spectrum, output=filename)
 
 
-# removes any peaks with an intensity less than min_intens
-# returns a count of the number of peaks removed
 def set_min_intens(mzs, intensities, min_intens):
+	"""removes any peaks with an intensity less than min_intens
+
+		Args:
+			mzs: a list of lists of the m/z ratios of the spectra
+			intensities: a list of lists of the intensities of the spectra
+			min_intens: minimum intensity to be kept
+
+		Returns:
+			count: number of removed spectra
+	"""
+
 	poppers = []
 	count = 0
 	for i,spec in enumerate(intensities):
@@ -98,9 +144,21 @@ def set_min_intens(mzs, intensities, min_intens):
 	return count
 
 
-# creates bins of width binsize of the m/z data for each spectra; sorts through peaks of each spectra and only keeps the k(peaks_per_bin) largest intensities of each bin
 # returns: [0]: # of removed spectra, [1]: # of affected spectra
 def choose_top_intensities(mzs, intensities, binsize, peaks_per_bin):
+	"""creates bins of width binsize of the m/z data for each spectra; sorts through peaks of each spectra and only keeps the k(peaks_per_bin) largest intensities of each bin
+		
+		Args:
+			mzs: a list of lists of the m/z ratios of the spectra
+			intensities: a list of lists of the intensities of the spectra
+			binsize: width of bins for which m/z data will fall into
+			peaks_per_bin: number of peaks to be kept within each bin
+
+		Returns:
+			[0]: number of removed peaks
+			[1]: number of affected spectra
+	"""
+
 	poppers = []
 	bins = binning_ms.create_bins(mzs, binsize)
 	for spec_num,spec in enumerate(mzs):
@@ -142,8 +200,16 @@ def choose_top_intensities(mzs, intensities, binsize, peaks_per_bin):
 	return removed, len(affected)
 
 
-# adds gaussian noise to the m/z dataset
 def create_gaussian_noise(mzs):
+	"""adds Gaussian noise to the dataset
+
+		Args:
+			mzs: a list of lists of the m/z ratios of the spectra
+
+		Returns:
+			noisy_shaped: data with Guassian noise implemented
+	"""
+
 	mzs_od = []
 	for mz in mzs:
 		for m in mz:
@@ -171,12 +237,12 @@ def create_gaussian_noise(mzs):
 	return noisy_shaped
 
 
-# # for testing
-# def main():
-# 	mgf_stuff = read_mgfs('./data/HMDB.mgf')
-# 	mzs, intensities = mgf_stuff[0], mgf_stuff[1]
-# 	read_mgf_binning('./data/HMDB.mgf')
-# 	noise_filteration(mgf='./data/HMDB.mgf', binsize=100, peaks_per_bin=5)
+# for testing
+def main():
+	mgf_stuff = read_mgfs('./data/HMDB.mgf')
+	mzs, intensities = mgf_stuff[0], mgf_stuff[1]
+	read_mgfs('./data/HMDB.mgf')
+	noise_filteration(mgf='./data/HMDB.mgf', binsize=100, peaks_per_bin=5)
 
-# if __name__ == "__main__":
-# 	main()
+if __name__ == "__main__":
+	main()
