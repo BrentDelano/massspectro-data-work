@@ -157,11 +157,12 @@ def find_bin(value, bins):
 # minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 10)
 # maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
 # also returns blockedIntens, which is the numeber of intensities that were filtered out by the threshold noise filtering
-def create_peak_matrix(mzs, intensities, identifiers, bins, listIfMultMZ=False, minIntens=10, maxIntens=0):
+def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False, minIntens=10, maxIntens=0):
 	if isinstance(mzs, list) and isinstance(intensities, list):
 		if isinstance(mzs[0], list) and isinstance(intensities[0], list):
 			peaks = []
-			peaks.append(identifiers)
+			if identifiers != 0:
+				peaks.append(identifiers)
 			blockedIntens = 0;
 			for i,mz in enumerate(mzs):
 				temp = [0] * len(bins)
@@ -248,6 +249,7 @@ def compress_bins(filled_bins):
 			raise TypeError('filled_bins should be a 2D list')
 	else:
 		raise TypeError('filled_bins should be a 2D list')
+
 
 # uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 # reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
@@ -426,7 +428,11 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	# mzs = create_gaussian_noise(mzs)
 
 	# # creates bins
+	# mgf_stuff = read_mgf_binning('./data/agp500.mgf')
+	# mzs = mgf_stuff[0]
+	# intensities = mgf_stuff[1]
 	# bins = create_bins(mzs, 0.3)
+	# peak_matrix = create_peak_matrix(mzs, intensities, bins)[0]
 
 	# # creates peaks matrix
 	# peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)[0]

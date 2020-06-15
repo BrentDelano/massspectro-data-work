@@ -37,9 +37,9 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 		if not mzxml:
 			raise ValueError('Either pass in a file path for mgf or mzxml')
 		else:
-			data = read_mzxml(mzxml)
+			data = binning_ms.read_mzxml(mzxml)
 	else:
-		data = read_mgfs(mgf)
+		data = binning_ms.read_mgf_binning(mgf)
 	mzs, intensities = data[0], data[1]
 
 	remaff = False
@@ -66,37 +66,6 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 		message = 'Number of Removed Spectra: %s \nNumber of Affected Spectra: %s' % (removed, affected)
 		log.info(message)
 
-	return mzs, intensities
-
-
-def read_mgfs(mgfs):
-	"""reads in mgf files that have been passed in as a list of strings of file paths, or a single file path as a string
-
-		Args:
-			mgfs: filepath to a .mgf file, or a list of filepaths
-
-		Returns:
-			mzs: a list of lists of the m/z ratios of the spectra
-			intensities: a list of lists of the intensities of the spectra
-	"""
-	binning_mgf = binning_ms.read_mgf_binning(mgfs)
-	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
-	return mzs, intensities
-
-
-def read_mzxml(mzxml):
-	"""reads an mzxml file
-
-		Args:
-			mzxml: filepath to a .mzxml file
-
-		Returns:
-			mzs: a list of lists of the m/z ratios of the spectra
-			intensities: a list of lists of the intensities of the spectra
-	"""
-
-	binning_mgf = binning_ms.read_mgf_binning(mzxml)
-	mzs, intensities, identifiers = binning_mgf[0], binning_mgf[1], binning_mgf[2]
 	return mzs, intensities
 
 
@@ -237,12 +206,78 @@ def create_gaussian_noise(mzs):
 	return noisy_shaped
 
 
+def pca_compression(mzs, intensities, identifiers, binsize=0.3, only95var=True):
+	"""uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
+	    reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
+
+	    Args: 
+			mzs: a list of lists of the m/z ratios of the spectra
+			intensities: a list of lists of the intensities of the spectra
+			binsize: width of bins for which m/z data will fall into
+			only95var: only keep componenets that explain 95% of the variance if true
+
+		Returns:
+			compressed[0]: compressed matrix
+			compressed[1]: loadings
+			compressed[2]: explained variances
+	"""
+
+	bins = binning_ms.create_bins(mzs, binsize)
+	peaks = binning_ms.create_peak_matrix(mzs=mzs, intensities=intensities, bins=bins, identifiers=identifiers)[0]
+
+	compressed = []
+	if only95var:
+		compressed = binning_ms.compress_bins_sml(peaks)
+	else:
+		compressed = binning_ms.compress_bins(peaks)
+
+	return compressed
+
+
+def remove_smallest_loadsxvar(loadings, expvars, removalperc):
+	"""further removes noise from pca by taking the sum of the loadings * variances from pca and removes the lowest removalperc, rounded down
+
+	    Args: 
+			loadings: 2x2 list of loadings from pca
+			expvars: list of explained variances from pca
+			removalperc: percentage of sum of the loadings * variances to remove, rounded down
+	"""
+
+	loadsxvar = []
+	for i,l in enumerate(loadings):
+		absload = []
+		for j in l:
+			absload.append(abs(j))
+		loadsxvar.append(expvars[i] * sum(absload))
+
+	removal_count = int(removalperc * 0.01 * len(loadsxvar))
+	lv = np.array(loadsxvar)
+	idcs = np.argsort(lv)[:removal_count]
+	idcs.sort()
+
+	for i in reversed(idcs):
+		loadings = np.delete(loadings, i, 0)
+		expvars = np.delete(expvars, i)
+
+	return loadings, expvars
+
+
 # for testing
 def main():
-	mgf_stuff = read_mgfs('./data/HMDB.mgf')
-	mzs, intensities = mgf_stuff[0], mgf_stuff[1]
-	read_mgfs('./data/HMDB.mgf')
-	noise_filteration(mgf='./data/HMDB.mgf', binsize=100, peaks_per_bin=5)
+	# mgf_stuff = binning_ms.read_mgf_binning('./data/agp500.mgf')
+	# mzs, intensities, identifiers = mgf_stuff[0], mgf_stuff[1], mgf_stuff[2]
+
+	pkl_data = open('pca_95var_agp500.pkl', 'rb')
+	compressed = pickle.load(pkl_data)
+	pkl_data.close()
+
+	print(len(compressed[1]))
+	print(len(compressed[2]))
+
+	compr_compr = remove_smallest_loadsxvar(compressed[1], compressed[2], 5)
+
+	print(len(compr_compr[0]))
+	print(len(compr_compr[1]))
 
 if __name__ == "__main__":
 	main()
