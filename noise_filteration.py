@@ -9,7 +9,18 @@ import numpy as np
 from sklearn.decomposition import PCA
 import pickle
 import logging
+import argparse
 import binning_ms
+
+parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
+parser.add_argument('-mgf', '--mgf', type=str, metavar='', help='.mgf filepath')
+parser.add_argument('-mzxml', '--mzxml', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
+parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: choose_top_intensities() 2: create_gaussian_noise() 3: pca_compression()')
+parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
+parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1')
+parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
+parser.add_argument('-f', '--filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
+args = parser.parse_args()
 
 def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks_per_bin=0, filename='data/noise_filtered.mgf'):
 	"""takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
@@ -20,16 +31,22 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 			method:
 				if method==0: set_min_intens()
 					min_intens: minimum intensity cutoff - must initialize if method==0
-				if method==1 (default): choose_top_intensities()
+				if method==1: (default): choose_top_intensities()
 					binsize: size of bins for which spectra fall into - must initialize if method==1
 					peaks_per_bin: number of spectra to keep in each bin - must initialize if method==1
 				if method==2: create_gaussian_noise()
+				if method==3: pca_compression()
+					binsize: size of bins for which spectra fall into - must initialize if method==3
 			filename: .mgf filename to which new spectra are placed into
 
 		Returns:
 			mzs: 2D list of kept/altered m/z ratios of spectra
 			intensities: 2D list of kept/altered intensity values corresponding to each m/z ratio
 			noise_filteration_count.Log: a .Log file reporting the number of affected spectra and removed peaks (only if method==0 or method==1)
+			if method==3: 
+				compressed[0]: compressed matrix
+				compressed[1]: loadings
+				compressed[2]: explained variances
 	"""
 
 	data = []
@@ -45,6 +62,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 	remaff = False
 	removed = 0
 	affected = 0
+	compressed = []
 	if method == 0:
 		remaff = True
 		removed = set_min_intens(mzs, intensities, min_intens)
@@ -56,6 +74,10 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 		removed, affected = ctp[0], ctp[1]
 	elif method == 2:
 		return create_gaussian_noise(mzs)
+	elif method == 3:
+		identifiers = ['irr']
+		compressed = pca_compression(mzs, intensities, identifiers, binsize)
+		return compressed
 	else:
 		return -1
 
@@ -262,22 +284,20 @@ def remove_smallest_loadsxvar(loadings, expvars, removalperc):
 	return loadings, expvars
 
 
-# for testing
-def main():
+if __name__ == "__main__":
 	# mgf_stuff = binning_ms.read_mgf_binning('./data/agp500.mgf')
 	# mzs, intensities, identifiers = mgf_stuff[0], mgf_stuff[1], mgf_stuff[2]
 
-	pkl_data = open('pca_95var_agp500.pkl', 'rb')
-	compressed = pickle.load(pkl_data)
-	pkl_data.close()
+	# pkl_data = open('pca_95var_agp500.pkl', 'rb')
+	# compressed = pickle.load(pkl_data)
+	# pkl_data.close()
 
-	print(len(compressed[1]))
-	print(len(compressed[2]))
+	# print(len(compressed[1]))
+	# print(len(compressed[2]))
 
-	compr_compr = remove_smallest_loadsxvar(compressed[1], compressed[2], 5)
+	# compr_compr = remove_smallest_loadsxvar(compressed[1], compressed[2], 5)
 
-	print(len(compr_compr[0]))
-	print(len(compr_compr[1]))
+	# print(len(compr_compr[0]))
+	# print(len(compr_compr[1]))
 
-if __name__ == "__main__":
-	main()
+	noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.peaks_per_bin, args.filename)
