@@ -30,12 +30,12 @@ def read_mgf_binning(mgfFile):
 	intensities = []
 	identifiers = []
 	if isinstance(mgfFile, list):
-		for mgfs_n in mgfFile:
-			with mgf.MGF(mgfs_n) as reader:
+		for mgf_n in mgfFile:
+			with mgf.MGF(mgf_n) as reader:
 				for j,spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
-					identifiers.append(mgfs_n + '_' + str(j+1))
+					identifiers.append(mgf_n + '_' + str(j+1))
 	else:
 		with mgf.MGF(mgfFile) as reader:
 			for j,spectrum in enumerate(reader):
@@ -44,18 +44,26 @@ def read_mgf_binning(mgfFile):
 				identifiers.append(mgfFile + '_' + str(j+1))
 	return mzs, intensities, identifiers
 
-# takes in .mzxml file paths as a string
+# takes in .mzxml file file paths as strings (if more than one, then use a list of strings) and reads the .mzxml file
 # outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
 #	the third a list of identifiers
 def read_mzxml(mzxmlFile):
 	mzs = []
 	intensities = []
 	identifiers = []
-	with mzxml.read(mzxmlFile) as reader: 
-		for j,spectrum in enumerate(reader):
-			mzs.append(spectrum['m/z array'].tolist())
-			intensities.append(spectrum['intensity array'].tolist())
-			identifiers.append(mzxmlFile + '_' + str(j+1))
+	if isinstance(mzxmlFile, list):
+		for mzxml_n in mzxmlFile:
+			with mzxml.read(mzxml_n) as reader:
+				for j,spectrum in enumerate(reader):
+					mzs.append(spectrum['m/z array'].tolist())
+					intensities.append(spectrum['intensity array'].tolist())
+					identifiers.append(mzxml_n + '_' + str(j+1))
+	else:
+		with mzxml.read(mzxmlFile) as reader: 
+			for j,spectrum in enumerate(reader):
+				mzs.append(spectrum['m/z array'].tolist())
+				intensities.append(spectrum['intensity array'].tolist())
+				identifiers.append(mzxmlFile + '_' + str(j+1))
 	return mzs, intensities, identifiers
 
 
@@ -218,13 +226,13 @@ def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False
 							break
 				if delete == True:
 					remove.append(i)
-
 			for j,p in enumerate(peaks):
 				if j != 0:
 					for r in reversed(remove):
 						if j == 1:
 							bins.pop(r)
 						p.pop(r)
+
 			return peaks, blockedIntens
 		else: 
 			raise TypeError('mzs and intensities should be 2D lists')
@@ -240,7 +248,7 @@ def compress_bins(filled_bins):
 			if isinstance(filled_bins[0][0], str):
 				filled_bins.pop(0)
 			np_bins = np.array(filled_bins)
-			pca = PCA(n_components=len(filled_bins[0])-1)
+			pca = PCA()
 			compressed = pca.fit_transform(np_bins)
 			components = pca.components_
 			var_ratio = pca.explained_variance_ratio_

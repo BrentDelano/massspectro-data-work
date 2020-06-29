@@ -1,0 +1,40 @@
+INFO:root:Test 1: set_min_intens() (mgf = HMDB.mgf, min_intens = 50)
+Number of Removed Spectra: 18089 
+Number of Affected Spectra: 2073 
+Time it took to complete: 0.9680907726287842 s
+INFO:root:Test 2: set_min_intens() (mgf = HMDB.mgf, min_intens = 10)
+Number of Removed Spectra: 6078 
+Number of Affected Spectra: 1345 
+Time it took to complete: 1.2300806045532227 s
+INFO:root:Test 3: set_min_intens() (mgf = agp500.mgf, min_intens = 200)
+Number of Removed Spectra: 785449 
+Number of Affected Spectra: 10146 
+Time it took to complete: 13.138675928115845 s
+INFO:root:Test 4: choose_top_intensities() (mgf = HMDB.mgf, binsize = 20, peaks_per_bin = 5)
+Number of Removed Spectra: 1499 
+Number of Affected Spectra: 352 
+Time it took to complete: 1.419126033782959 s
+INFO:root:Test 5: choose_top_intensities() (mgf = HMDB.mgf, binsize = 10, peaks_per_bin = 1)
+Number of Removed Spectra: 10094 
+Number of Affected Spectra: 1714 
+Time it took to complete: 1.299227237701416 s
+INFO:root:Test 5: choose_top_intensities() (mgf = agp500.mgf, binsize = 20, peaks_per_bin = 5)
+Number of Removed Spectra: 454010 
+Number of Affected Spectra: 8177 
+Time it took to complete: 42.76367497444153 s
+INFO:root:Test 7: pca_compression() (mgf = HMDB.mgf, binsize = 1)
+Number of Removed Spectra: 21445 
+Number of Affected Spectra: 2202 
+Time it took to complete: 1.9786889553070068 s
+INFO:root:Test 8: pca_compression() (mgf = HMDB.mgf, binsize = 10)
+Number of Removed Spectra: 18801 
+Number of Affected Spectra: 2155 
+Time it took to complete: 0.9832301139831543 s
+INFO:root:Test 8 REDO: pca_compression() (mgf = HMDB.mgf, binsize = 10)
+Number of Removed Spectra: 19452 
+Number of Affected Spectra: 2171 
+Time it took to complete: 0.941277027130127 s
+INFO:root:Test 9: pca_compression() (mgf = agp500.mgf, binsize = 10)
+Number of Removed Spectra: 802090 
+Number of Affected Spectra: 10086 
+Time it took to complete: 22.607568740844727 s
