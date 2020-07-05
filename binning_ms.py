@@ -23,12 +23,13 @@ from sklearn.decomposition import PCA
 import pickle
 
 # takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
-# outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
-#	the third a list of identifiers
+# outputs 4 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
+#	the third a list of identifiers, and the fourth a list of the names of the spectra
 def read_mgf_binning(mgfFile):
 	mzs = []
 	intensities = []
 	identifiers = []
+	names = []
 	if isinstance(mgfFile, list):
 		for mgf_n in mgfFile:
 			with mgf.MGF(mgf_n) as reader:
@@ -36,13 +37,21 @@ def read_mgf_binning(mgfFile):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
 					identifiers.append(mgf_n + '_' + str(j+1))
+					try:
+						names.append(spectrum['params']['name'])
+					except KeyError:
+						names.append('unknown spectrum')
 	else:
 		with mgf.MGF(mgfFile) as reader:
 			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
 				identifiers.append(mgfFile + '_' + str(j+1))
-	return mzs, intensities, identifiers
+				try:
+					names.append(spectrum['params']['name'])
+				except KeyError:
+					names.append('unknown spectrum')
+	return mzs, intensities, identifiers, names
 
 # takes in .mzxml file file paths as strings (if more than one, then use a list of strings) and reads the .mzxml file
 # outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
@@ -51,6 +60,7 @@ def read_mzxml(mzxmlFile):
 	mzs = []
 	intensities = []
 	identifiers = []
+	names = []
 	if isinstance(mzxmlFile, list):
 		for mzxml_n in mzxmlFile:
 			with mzxml.read(mzxml_n) as reader:
@@ -58,13 +68,21 @@ def read_mzxml(mzxmlFile):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
 					identifiers.append(mzxml_n + '_' + str(j+1))
+					try:
+						names.append(spectrum['params']['name'])
+					except KeyError:
+						names.append('unknown spectrum')
 	else:
 		with mzxml.read(mzxmlFile) as reader: 
 			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
 				identifiers.append(mzxmlFile + '_' + str(j+1))
-	return mzs, intensities, identifiers
+				try:
+					names.append(spectrum['params']['name'])
+				except KeyError:
+					names.append('unknown spectrum')
+	return mzs, intensities, identifiers, names
 
 
 # finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
@@ -244,7 +262,7 @@ def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False
 # reduces the number of bins by pca
 def compress_bins(filled_bins):
 	if isinstance(filled_bins, list):
-		if isinstance(filled_bins[0], list):
+		if isinstance(filled_bins[1], list):
 			if isinstance(filled_bins[0][0], str):
 				filled_bins.pop(0)
 			np_bins = np.array(filled_bins)

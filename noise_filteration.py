@@ -22,7 +22,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 			method:
 				if method==0: set_min_intens()
 					min_intens: minimum intensity cutoff - must initialize if method==0
-				if method==1: (default): choose_top_intensities()
+				if method==1: (default): greatest_peaks_in_windows()
 					binsize: size of bins for which spectra fall into - must initialize if method==1
 					peaks_per_bin: number of spectra to keep in each bin - must initialize if method==1
 				if method==2: create_gaussian_noise()
@@ -45,35 +45,47 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 			data = binning_ms.read_mzxml(mzxml)
 	else:
 		data = binning_ms.read_mgf_binning(mgf)
-	mzs, intensities = data[0], data[1]
+	mzs, intensities, identifiers, names = data[0], data[1], data[2], data[3]
 
 	remaff = False
 	removed = 0
 	affected = 0
+	victims = []
 	compressed = []
 	if method == 0:
 		remaff = True
-		removed, affected = set_min_intens(mzs, intensities, min_intens)
+		removed, affected, victims = set_min_intens(mzs, intensities, min_intens, names, identifiers)
 	elif method == 1:
 		remaff = True
 		if binsize == 0 or peaks_per_bin == 0:
 			raise ValueError('Pass in values for binsize and peaks_per_bin')
-		ctp = choose_top_intensities(mzs, intensities, binsize, peaks_per_bin)
-		removed, affected = ctp[0], ctp[1]
+		ctp = greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names)
+		removed, affected, victims = ctp[0], ctp[1], ctp[2]
 	elif method == 2:
 		return create_gaussian_noise(mzs)
 	elif method == 3:
 		remaff = True
-		identifiers = ['irr']
-		removed, affected = pca_compression(mzs, intensities, identifiers, 95, binsize, False)
+		removed, affected, victims = pca_compression(mzs, intensities, 95, names, identifiers, binsize, only95var=False)
 	else:
 		return -1
 
 	write_to_mgf(mgf, mzxml, mzs, intensities, filename)
 	if remaff:
-		logging.basicConfig(filename='filtration_tests/noise_filtration_tests.Log', level=logging.DEBUG, filemode='a+')
+		logging.basicConfig(filename='filtration_tests/test_new_format.Log', level=logging.DEBUG, filemode='a+')
 		log = logging.getLogger()
-		message = 'Test 9: pca_compression() (mgf = agp500.mgf, binsize = 10)\nNumber of Removed Spectra: %s \nNumber of Affected Spectra: %s \nTime it took to complete: %s s' % (removed, affected, time.time()-start_time)
+		
+		filt_method = ''
+		if method == 0:
+			filt_method = 'set_min_intens(min_intens=%s)' % min_intens
+		elif method == 1:
+			filt_method = 'greatest_peaks_in_windows(binsize=%s, peaks_per_bin=%s)' % (binsize, peaks_per_bin)
+		elif method == 3:
+			filt_method = 'pca_compression(binsize=%s)' % binsize
+
+		message = 'Format: filtration method, name of affected spectrum, m/z of removed peak, intensity of removed peak, .mgf file and spectrum index\n'
+		for v in victims:
+			message += '\n%s, %s, %s, %s, %s' % (filt_method, v[0], v[1], v[2], v[3])
+		
 		log.info(message)
 
 	return removed, affected
@@ -117,16 +129,20 @@ def write_to_mgf(mgfFile='', mzxmlFile='', mzs=[], intensities=[], filename=''):
 	mgf.write(spectra=spectrum, output=filename)
 
 
-def set_min_intens(mzs, intensities, min_intens):
+def set_min_intens(mzs, intensities, min_intens, names, identifiers):
 	"""removes any peaks with an intensity less than min_intens
 
 		Args:
 			mzs: a list of lists of the m/z ratios of the spectra
 			intensities: a list of lists of the intensities of the spectra
 			min_intens: minimum intensity to be kept
+			names: list of names of spectra
+			identifiers: list of spectra identifiers (not important)
 
 		Returns:
-			removed_peaks: number of removed peaks
+			[0]: number of removed peaks
+			[1]: number of affected spectra
+			[2]: names and values of affected spectra and removed peaks
 	"""
 	poppers = []
 	removed_peaks = 0
@@ -140,14 +156,16 @@ def set_min_intens(mzs, intensities, min_intens):
 				affected = True
 		if affected:
 			affected_spectra += 1
+	victims = []
 	for p in reversed(poppers):
+		victims.append([names[p[0]], mzs[p[0]][p[1]], intensities[p[0]][p[1]], identifiers[p[0]]])
 		mzs[p[0]].pop(p[1])
 		intensities[p[0]].pop(p[1])
-	return removed_peaks, affected_spectra
+	return removed_peaks, affected_spectra, reversed(victims)
 
 
 # returns: [0]: # of removed spectra, [1]: # of affected spectra
-def choose_top_intensities(mzs, intensities, binsize, peaks_per_bin):
+def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names):
 	"""creates bins of width binsize of the m/z data for each spectra; sorts through peaks of each spectra and only keeps the k(peaks_per_bin) largest intensities of each bin
 		
 		Args:
@@ -159,6 +177,7 @@ def choose_top_intensities(mzs, intensities, binsize, peaks_per_bin):
 		Returns:
 			[0]: number of removed peaks
 			[1]: number of affected spectra
+			[2]: names and values of affected spectra and removed peaks
 	"""
 	poppers = []
 	bins = binning_ms.create_bins(mzs, binsize)
@@ -190,31 +209,35 @@ def choose_top_intensities(mzs, intensities, binsize, peaks_per_bin):
 
 	removed = len(poppers)
 	affected = []
+	victims = []
 	for c,p in enumerate(reversed(poppers)):
 		if c == 0:
 			affected.append(p[0])
 		else:
 			if p[0] not in affected:
 				affected.append(p[0])
+		victims.append([names[p[0]], mzs[p[0]][p[1]], intensities[p[0]][p[1]], identifiers[p[0]]])
 		mzs[p[0]].pop(p[1])
 		intensities[p[0]].pop(p[1])
-	return removed, len(affected)
+	return removed, len(affected), reversed(victims)
 
 
-def pca_compression(mzs, intensities, identifiers, removalperc, binsize=0.3, only95var=True):
+def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0.3, only95var=True):
 	"""uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 	    reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
 
 	    Args: 
 			mzs: a list of lists of the m/z ratios of the spectra
 			intensities: a list of lists of the intensities of the spectra
+			identifiers: list of spectra identifiers
+			removalperc : percentage of components to remove
 			binsize: width of bins for which m/z data will fall into
 			only95var: only keep componenets that explain 95% of the variance if true
 
 		Returns:
-			compressed[0]: compressed matrix
-			compressed[1]: loadings
-			compressed[2]: explained variances
+			[0]: number of removed peaks
+			[1]: number of affected spectra
+			[2]: names and values of affected spectra and removed peaks
 	"""
 	bins = binning_ms.create_bins(mzs, binsize)
 	peaks = binning_ms.create_peak_matrix(mzs=mzs, intensities=intensities, bins=bins, identifiers=identifiers, minIntens=0)[0]
@@ -226,21 +249,26 @@ def pca_compression(mzs, intensities, identifiers, removalperc, binsize=0.3, onl
 		compressed = binning_ms.compress_bins(peaks)
 
 	removal_indcs = remove_smallest_loadsxvar(compressed[1], compressed[2], removalperc)
-	affected_spectra = 0;
-	removed_peaks = 0;
+	victims = []
+	affected_spectra = 0
+	removed_peaks = 0
 	for i,mz in enumerate(mzs):
 		affected = False
+		vic = []
 		for j in reversed(range(len(mz))):
 			bin = binning_ms.find_bin(mz[j], bins)
 			if bin in removal_indcs:
+				vic.append([mzs[i][j], intensities[i][j]])
 				mzs[i].pop(j)
 				intensities[i].pop(j)
 				removed_peaks += 1
 				affected = True
+		for v in reversed(vic):
+			victims.append([names[i], v[0], v[1], identifiers[i]])
 		if affected:
 			affected_spectra += 1
 
-	return removed_peaks, affected_spectra
+	return removed_peaks, affected_spectra, victims
 
 
 def create_gaussian_noise(mzs):
@@ -286,6 +314,9 @@ def remove_smallest_loadsxvar(loadings, expvars, removalperc):
 			loadings: 2x2 list of loadings from pca
 			expvars: list of explained variances from pca
 			removalperc: percentage of sum of the loadings * variances to remove, rounded down (between 0 and 100)
+
+		Returns:
+			idcs: indices of bins to remove
 	"""
 	loadsxvar = []
 	for i,l in enumerate(loadings):
@@ -306,7 +337,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
-	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: choose_top_intensities() 2: create_gaussian_noise() 3: pca_compression()')
+	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression()')
 	parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
 	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1')
 	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
