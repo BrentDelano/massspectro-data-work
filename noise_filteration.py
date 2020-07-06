@@ -12,8 +12,11 @@ import logging
 import argparse
 import binning_ms
 import time
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks_per_bin=0, filename='data/noise_filtered.mgf'):
+def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks_per_bin=0, mgf_out_filename='', log_out_filename=''):
 	"""takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
 		
 		Args:
@@ -28,11 +31,10 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 				if method==2: create_gaussian_noise()
 				if method==3: pca_compression()
 					binsize: size of bins for which spectra fall into - must initialize if method==3
-			filename: .mgf filename to which new spectra are placed into
+			mgf_out_filename: .mgf filename to which new spectra are placed into
+			log_out_filename: .log filename to which output data is placed into (note: do not append to existing log files)
 
 		Returns:
-			removed: number of removed spectra due to filtration
-			affected: number of affected affected due to filtration
 			noise_filteration_count.Log: a .Log file reporting the number of affected spectra and removed peaks (only if method==0 or method==1)
 	"""
 	start_time = time.time()
@@ -45,7 +47,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 			data = binning_ms.read_mzxml(mzxml)
 	else:
 		data = binning_ms.read_mgf_binning(mgf)
-	mzs, intensities, identifiers, names = data[0], data[1], data[2], data[3]
+	mzs, intensities, identifiers, names, from_mgf = data[0], data[1], data[2], data[3], data[4]
 
 	remaff = False
 	removed = 0
@@ -54,7 +56,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 	compressed = []
 	if method == 0:
 		remaff = True
-		removed, affected, victims = set_min_intens(mzs, intensities, min_intens, names, identifiers)
+		removed, affected, victims = set_min_intens(mzs, intensities, min_intens, names, from_mgf)
 	elif method == 1:
 		remaff = True
 		if binsize == 0 or peaks_per_bin == 0:
@@ -65,13 +67,14 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 		return create_gaussian_noise(mzs)
 	elif method == 3:
 		remaff = True
-		removed, affected, victims = pca_compression(mzs, intensities, 95, names, identifiers, binsize, only95var=False)
+		removed, affected, victims = pca_compression(mzs, intensities, 95, names, from_mgf, binsize, only95var=False)
 	else:
 		return -1
 
-	write_to_mgf(mgf, mzxml, mzs, intensities, filename)
+	write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
+
 	if remaff:
-		logging.basicConfig(filename='filtration_tests/test_new_format.Log', level=logging.DEBUG, filemode='a+')
+		logging.basicConfig(filename=log_out_filename, level=logging.DEBUG, filemode='a+')
 		log = logging.getLogger()
 		
 		filt_method = ''
@@ -82,13 +85,11 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 		elif method == 3:
 			filt_method = 'pca_compression(binsize=%s)' % binsize
 
-		message = 'Format: filtration method, name of affected spectrum, m/z of removed peak, intensity of removed peak, .mgf file and spectrum index\n'
+		message = '\nfiltration method;name of affected spectrum;m/z of removed peak;intensity of removed peak;.mgf file\n'
 		for v in victims:
-			message += '\n%s, %s, %s, %s, %s' % (filt_method, v[0], v[1], v[2], v[3])
-		
-		log.info(message)
+			message += '\n%s;%s;%s;%s;%s' % (filt_method, v[0], v[1], v[2], v[3])
 
-	return removed, affected
+		log.info(message)
 
 
 def write_to_mgf(mgfFile='', mzxmlFile='', mzs=[], intensities=[], filename=''):
@@ -137,7 +138,7 @@ def set_min_intens(mzs, intensities, min_intens, names, identifiers):
 			intensities: a list of lists of the intensities of the spectra
 			min_intens: minimum intensity to be kept
 			names: list of names of spectra
-			identifiers: list of spectra identifiers (not important)
+			identifiers: list of spectra identifiers
 
 		Returns:
 			[0]: number of removed peaks
@@ -333,6 +334,39 @@ def remove_smallest_loadsxvar(loadings, expvars, removalperc):
 	return idcs
 
 
+def read_log(log_file):
+	"""takes in a list of log file paths and outputs data to a pandas dataframe
+
+	    Args: 
+			log_file: list of file paths to a log file
+				- Format of log file: 'filtration method;name of affected spectrum;m/z of removed peak;intensity of removed peak;.mgf file'
+				- First line ignored (INFO:ROOT etc.)
+
+		Returns:
+			df: pandas dataframe of data from log file
+	"""
+	df = pd.DataFrame()
+	if isinstance(log_file, list):
+		for i,f in enumerate(log_file):
+			if i == 0:
+				df = pd.read_csv(f, sep=';', skiprows=1)
+			else:
+				df = df.append(pd.read_csv(f, sep=';', skiprows=1))
+	return df
+
+
+def graph_removed_data(df):
+	"""takes in a pandas dataframe (explained above) of data to graph (graphs a scatter of the data (x: m/z, y: intensity))
+
+	    Args: 
+			df: pandas dataframe (see read_log() for a detailed explanation of format of df)
+	"""
+	g = sns.FacetGrid(df, col='filtration method', hue='.mgf file')
+	g.map(plt.scatter, 'm/z of removed peak', 'intensity of removed peak', alpha=.7)
+	g.add_legend()
+	plt.show()
+
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
@@ -341,7 +375,14 @@ if __name__ == "__main__":
 	parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
 	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1')
 	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
-	parser.add_argument('-f', '--filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
+	parser.add_argument('-mf', '--mgf_filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
+	parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
+	parser.add_argument('-lfi', '--log_filename_input', nargs='*', type=str, metavar='', help='.log filepaths for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES)')
 	args = parser.parse_args()
 
-	noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.peaks_per_bin, args.filename)
+	if args.log_filename_input:
+		df = read_log(args.log_filename_input)
+		graph_removed_data(df)
+	else:
+		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.peaks_per_bin, args.mgf_filename, args.log_filename)
+
