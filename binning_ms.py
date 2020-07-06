@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 import copy
 from sklearn.decomposition import PCA
 import pickle
+import argparse
+import pandas as pd
 
 # takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
 # outputs 4 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
@@ -531,5 +533,26 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	# graphs histogram of m/z data
 	# graph_mzs(mzs, len(bins))
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 # 	main()
+	parser = argparse.ArgumentParser(description='Various binning functions for mgfs')
+	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
+	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
+	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into')
+	parser.add_argument('-f', '--filename', type=str, metavar='', help='filepath to output data to')
+	args = parser.parse_args()
+
+	data = []
+	if args.mgf:
+		data = read_mgf_binning(args.mgf)
+	else:
+		data = read_mzxml_binning(args.mzxml)
+	bins = create_bins(data[0], args.binsize)
+	peaks = create_peak_matrix(data[0], data[1], bins, data[2])[0]
+	headers = peaks[0]
+	peaks.pop(0)
+	for i,h in enumerate(headers):
+		peaks[i].insert(0, h)
+
+	df = pd.DataFrame(peaks)
+	df.to_csv(args.filename)
