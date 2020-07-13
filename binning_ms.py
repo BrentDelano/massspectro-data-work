@@ -12,6 +12,7 @@
 # Uses https://www.python-course.eu/pandas_python_binning.php for binning functions
 # Uses https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html for plots
 # Uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca for compression
+# Uses https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler for preprocessing scaling
 
 import pyteomics
 from pyteomics import mgf, mzxml
@@ -20,6 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 import pickle
 import argparse
 import pandas as pd
@@ -45,6 +47,7 @@ def read_mgf_binning(mgfFile):
 						names.append(spectrum['params']['name'])
 					except KeyError:
 						names.append('unknown spectrum')
+			scale(mzs, intensities)
 	else:
 		with mgf.MGF(mgfFile) as reader:
 			for j,spectrum in enumerate(reader):
@@ -56,6 +59,8 @@ def read_mgf_binning(mgfFile):
 					names.append(spectrum['params']['name'])
 				except KeyError:
 					names.append('unknown spectrum')
+		scale(mzs, intensities)
+
 	return mzs, intensities, identifiers, names, from_mgf
 
 # takes in .mzxml file file paths as strings (if more than one, then use a list of strings) and reads the .mzxml file
@@ -79,6 +84,7 @@ def read_mzxml(mzxmlFile):
 						names.append(spectrum['params']['name'])
 					except KeyError:
 						names.append('unknown spectrum')
+			scale(mzs, intensities)
 	else:
 		with mzxml.read(mzxmlFile) as reader: 
 			for j,spectrum in enumerate(reader):
@@ -90,7 +96,40 @@ def read_mzxml(mzxmlFile):
 					names.append(spectrum['params']['name'])
 				except KeyError:
 					names.append('unknown spectrum')
-	return mzs, intensities, identifiers, names, from_mgf
+		scale(mzs, intensities)
+
+		return mzs, intensities, identifiers, names, from_mgf
+
+
+def rmv_zero_intensities(mzs, intensities):
+	poppers = []
+	for n,intens in enumerate(intensities):
+		for m,i in enumerate(intens):
+			if i == 0:
+				poppers.append([n, m])
+	poppers.reverse()
+	for p in poppers:
+		mzs[p[0]].pop(p[1])
+		intensities[p[0]].pop(p[1])
+
+
+def scale(mzs, intensities):
+	rmv_zero_intensities(mzs, intensities)
+	intens_1d = []
+	for intens in intensities:
+		if intens:
+			for i in intens:
+				intens_1d.append(i)
+	intens_1d = np.array(intens_1d)
+	scaler = StandardScaler()
+	scaler.fit(intens_1d.reshape(-1, 1))
+	scaled = scaler.transform(intens_1d.reshape(-1, 1))
+	n = 0
+	for j,intens in enumerate(intensities):
+		if intens:
+			for k,i in enumerate(intens):
+				intensities[j][k] = scaled[n][0]
+				n += 1
 
 
 # finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
@@ -155,13 +194,17 @@ def findMinMax(mzs):
 	maxmz = 0
 	for i,mz in enumerate(mzs):
 		if i == 0:
-			minmz = mz[0]
-			maxmz = mz[0]
-		for m in mz:
-			if m < minmz:
-				minmz = m
-			if m > maxmz:
-				maxmz = m
+			for check in mzs:
+				if check:
+					minmz = check[0]
+					maxmz = check[0]
+					break
+		if mz:
+			for m in mz:
+				if m < minmz:
+					minmz = m
+				if m > maxmz:
+					maxmz = m
 	return minmz, maxmz
 
 
@@ -173,8 +216,9 @@ def find_bin(value, bins):
 		    for i in range(0, len(bins)):
 		        if bins[i][0] <= value < bins[i][1]:
 		            return i
+		    print(value)
 		    raise ValueError('Value does not fall into bins')
-		else: 
+		else:
 			raise TypeError('Bins should be a 2D list')
 	else:
 		raise TypeError('Bins should be a 2D list')
@@ -197,7 +241,7 @@ def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False
 			peaks = []
 			if identifiers != 0:
 				peaks.append(identifiers)
-			blockedIntens = 0;
+			blockedIntens = 0
 			for i,mz in enumerate(mzs):
 				temp = [0] * len(bins)
 				for j,m in enumerate(mz):
@@ -242,22 +286,22 @@ def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False
 							blockedIntens += 1
 				peaks.append(temp)
 
-			remove = []
-			for i in range(len(peaks[1])):
-				delete = True
-				for j,p in enumerate(peaks):
-					if j != 0:
-						if p[i] != 0:
-							delete = False
-							break
-				if delete == True:
-					remove.append(i)
-			for j,p in enumerate(peaks):
-				if j != 0:
-					for r in reversed(remove):
-						if j == 1:
-							bins.pop(r)
-						p.pop(r)
+			# remove = []
+			# for i in range(len(peaks[1])):
+			# 	delete = True
+			# 	for j,p in enumerate(peaks):
+			# 		if j != 0:
+			# 			if p[i] != 0:
+			# 				delete = False
+			# 				break
+			# 	if delete == True:
+			# 		remove.append(i)
+			# for j,p in enumerate(peaks):
+			# 	if j != 0:
+			# 		for r in reversed(remove):
+			# 			if j == 1:
+			# 				bins.pop(r)
+			# 			p.pop(r)
 
 			return peaks, blockedIntens
 		else: 
@@ -534,7 +578,7 @@ def graph_loadsxvar_mostvar(components, variance_ratio):
 	# graph_mzs(mzs, len(bins))
 
 if __name__ == "__main__":
-# 	main()
+	# main()
 	parser = argparse.ArgumentParser(description='Various binning functions for mgfs')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')

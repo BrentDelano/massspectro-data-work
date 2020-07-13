@@ -4,10 +4,8 @@
 
 import pyteomics
 from pyteomics import mgf, mzxml
-import math
 import numpy as np
 from sklearn.decomposition import PCA
-import pickle
 import logging
 import argparse
 import binning_ms
@@ -16,7 +14,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks_per_bin=0, mgf_out_filename='', log_out_filename=''):
+def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, removalperc=50, peaks_df='', peaks_per_bin=0, mgf_out_filename='', log_out_filename=''):
 	"""takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
 		
 		Args:
@@ -31,6 +29,8 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 				if method==2: create_gaussian_noise()
 				if method==3: pca_compression()
 					binsize: size of bins for which spectra fall into - must initialize if method==3
+					removalperc: percentage of loadsxvar to remove
+				if method is not 0-3: no filtration
 			mgf_out_filename: .mgf filename to which new spectra are placed into
 			log_out_filename: .log filename to which output data is placed into (note: do not append to existing log files)
 
@@ -67,9 +67,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, peaks
 		return create_gaussian_noise(mzs)
 	elif method == 3:
 		remaff = True
-		removed, affected, victims = pca_compression(mzs, intensities, 95, names, from_mgf, binsize, only95var=False)
-	else:
-		return -1
+		removed, affected, victims = pca_compression(mzs, intensities, removalperc, names, from_mgf, binsize, only95var=False, peaks_df=peaks_df)
 
 	write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
 
@@ -223,7 +221,7 @@ def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names):
 	return removed, len(affected), reversed(victims)
 
 
-def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0.3, only95var=True):
+def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0.3, only95var=True, peaks_df=''):
 	"""uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 	    reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
 
@@ -242,6 +240,7 @@ def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0
 	"""
 	bins = binning_ms.create_bins(mzs, binsize)
 	peaks = binning_ms.create_peak_matrix(mzs=mzs, intensities=intensities, bins=bins, identifiers=identifiers, minIntens=0)[0]
+	headers = peaks[0]
 
 	compressed = []
 	if only95var:
@@ -269,7 +268,39 @@ def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0
 		if affected:
 			affected_spectra += 1
 
+	if peaks_df:
+		for i,h in enumerate(headers):
+			peaks[i].insert(0, h)
+		df = pd.DataFrame(peaks)
+		df.to_csv(peaks_df)
+
 	return removed_peaks, affected_spectra, victims
+
+
+def remove_smallest_loadsxvar(loadings, expvars, removalperc):
+	"""further removes noise from pca by taking the sum of the loadings * variances from pca and removes the lowest removalperc, rounded down
+
+	    Args: 
+			loadings: 2x2 list of loadings from pca
+			expvars: list of explained variances from pca
+			removalperc: percentage of sum of the loadings * variances to remove, rounded down (between 0 and 100)
+
+		Returns:
+			idcs: indices of bins to remove
+	"""
+	loadsxvar = []
+	for i,l in enumerate(loadings):
+		absload = []
+		for j in l:
+			absload.append(abs(j))
+		loadsxvar.append(expvars[i] * sum(absload))
+
+	removal_count = int(removalperc * 0.01 * len(loadsxvar))
+	lv = np.array(loadsxvar)
+	idcs = np.argsort(lv)[:removal_count]
+	idcs.sort()
+
+	return idcs
 
 
 def create_gaussian_noise(mzs):
@@ -306,32 +337,6 @@ def create_gaussian_noise(mzs):
 		i += 1
 
 	return noisy_shaped
-
-
-def remove_smallest_loadsxvar(loadings, expvars, removalperc):
-	"""further removes noise from pca by taking the sum of the loadings * variances from pca and removes the lowest removalperc, rounded down
-
-	    Args: 
-			loadings: 2x2 list of loadings from pca
-			expvars: list of explained variances from pca
-			removalperc: percentage of sum of the loadings * variances to remove, rounded down (between 0 and 100)
-
-		Returns:
-			idcs: indices of bins to remove
-	"""
-	loadsxvar = []
-	for i,l in enumerate(loadings):
-		absload = []
-		for j in l:
-			absload.append(abs(j))
-		loadsxvar.append(expvars[i] * sum(absload))
-
-	removal_count = int(removalperc * 0.01 * len(loadsxvar))
-	lv = np.array(loadsxvar)
-	idcs = np.argsort(lv)[:removal_count]
-	idcs.sort()
-
-	return idcs
 
 
 def read_log(log_file):
@@ -371,9 +376,11 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
-	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression()')
+	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: no filtration')
 	parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
-	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1')
+	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1 or 3')
+	parser.add_argument('-rmp', '--removalperc', type=float, metavar='', help='percentage of loadings x variances to remove - must initialize if method==3')
+	parser.add_argument('-pks', '--peaks_df', type=str, metavar='', help='csv filepath. If initialized, will return a csv file of the bins and peaks matrix - only if method==3')
 	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
 	parser.add_argument('-mf', '--mgf_filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
 	parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
@@ -384,5 +391,5 @@ if __name__ == "__main__":
 		df = read_log(args.log_filename_input)
 		graph_removed_data(df)
 	else:
-		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.peaks_per_bin, args.mgf_filename, args.log_filename)
+		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.mgf_filename, args.log_filename)
 
