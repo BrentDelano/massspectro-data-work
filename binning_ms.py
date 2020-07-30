@@ -21,7 +21,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 import pickle
 import argparse
 import pandas as pd
@@ -121,15 +120,11 @@ def scale(mzs, intensities):
 			for i in intens:
 				intens_1d.append(i)
 	intens_1d = np.array(intens_1d)
-	scaler = StandardScaler()
-	scaler.fit(intens_1d.reshape(-1, 1))
-	scaled = scaler.transform(intens_1d.reshape(-1, 1))
-	n = 0
+	max_int = max(intens_1d)
 	for j,intens in enumerate(intensities):
 		if intens:
 			for k,i in enumerate(intens):
-				intensities[j][k] = scaled[n][0]
-				n += 1
+				intensities[j][k] = intensities[j][k]/max_int
 
 
 # finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
@@ -216,7 +211,6 @@ def find_bin(value, bins):
 		    for i in range(0, len(bins)):
 		        if bins[i][0] <= value < bins[i][1]:
 		            return i
-		    print(value)
 		    raise ValueError('Value does not fall into bins')
 		else:
 			raise TypeError('Bins should be a 2D list')

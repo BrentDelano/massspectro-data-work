@@ -13,6 +13,11 @@ import time
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import random
+import sys
+sys.path.insert(1, './jackstraw/jackstraw')
+import jackstraw
+from statsmodels.stats.multitest import multipletests
 
 def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, removalperc=50, peaks_df='', peaks_per_bin=0, mgf_out_filename='', log_out_filename=''):
 	"""takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
@@ -303,6 +308,57 @@ def remove_smallest_loadsxvar(loadings, expvars, removalperc):
 	return idcs
 
 
+# method taken from here: https://arxiv.org/abs/1308.6013
+def jackstraw_method(mzs, intensities, binsize, identifiers, components, s, repetitions):
+	permuted_fstats = []
+	for rep in range(0, repetitions):
+		# Create binned matrix and apply SVD
+		bins = binning_ms.create_bins(mzs, binsize)
+		peaks = binning_ms.create_peak_matrix(mzs=mzs, intensities=intensities, bins=bins, identifiers=identifiers, minIntens=0)[0]
+		peaks.pop(0)
+
+		# Find F-Statistics for each of the bins
+		fstats = []
+		for n in range(len(peaks[0])):
+			bin = []
+			for p in peaks:
+				bin.append(p[n])
+			# fstats.append(jackstraw.get_F_stat(np.array(bin), np.array(peaks)))
+		permuted_fstats.append(fstats)
+
+		# Permute s rows
+		rands = []
+		for i in range(0, s):
+			while True:
+				r = int(np.round(random.randint(0, len(peaks))))
+				if r not in rands:
+					rands.append()
+					break
+		for r in rands:
+			rem = peaks.pop(r)
+			new_loc = int(np.round(random.randint(0, len(peaks)+1)))
+			peaks.insert(new_loc, rem)
+
+	# Compute p-values for bins
+	pvals = []
+
+	corrected = multipletests(pvals)
+	return corrected
+
+	# # Take the top 5% of the p-values
+	# top = np.round(0.05 * len(pvals))
+	# top_ps = []
+	# for i in range(0, top):
+	# 	max_p = 0
+	# 	max_indx = 0
+	# 	for n,p in enumerate(pvals):
+	# 		if p > max_p:
+	# 			max_p = p
+	# 			max_indx = n
+	# 	top_ps.append(max_indx)
+	# 	pvals.remove(max_p)
+
+
 def create_gaussian_noise(mzs):
 	"""adds Gaussian noise to the dataset
 
@@ -373,23 +429,26 @@ def graph_removed_data(df):
 
 
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
-	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
-	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
-	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: no filtration')
-	parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
-	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1 or 3')
-	parser.add_argument('-rmp', '--removalperc', type=float, metavar='', help='percentage of loadings x variances to remove - must initialize if method==3')
-	parser.add_argument('-pks', '--peaks_df', type=str, metavar='', help='csv filepath. If initialized, will return a csv file of the bins and peaks matrix - only if method==3')
-	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
-	parser.add_argument('-mf', '--mgf_filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
-	parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
-	parser.add_argument('-lfi', '--log_filename_input', nargs='*', type=str, metavar='', help='.log filepaths for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES)')
-	args = parser.parse_args()
+	# parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
+	# parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
+	# parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
+	# parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: no filtration')
+	# parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
+	# parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1 or 3')
+	# parser.add_argument('-rmp', '--removalperc', type=float, metavar='', help='percentage of loadings x variances to remove - must initialize if method==3')
+	# parser.add_argument('-pks', '--peaks_df', type=str, metavar='', help='csv filepath. If initialized, will return a csv file of the bins and peaks matrix - only if method==3')
+	# parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
+	# parser.add_argument('-mf', '--mgf_filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
+	# parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
+	# parser.add_argument('-lfi', '--log_filename_input', nargs='*', type=str, metavar='', help='.log filepaths for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES)')
+	# args = parser.parse_args()
 
-	if args.log_filename_input:
-		df = read_log(args.log_filename_input)
-		graph_removed_data(df)
-	else:
-		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.mgf_filename, args.log_filename)
+	# if args.log_filename_input:
+	# 	df = read_log(args.log_filename_input)
+	# 	graph_removed_data(df)
+	# else:
+	# 	noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.mgf_filename, args.log_filename)
 
+	data = binning_ms.read_mgf_binning('./data/HMDB.mgf')
+	mzs, intensities, identifiers, names, from_mgf = data[0], data[1], data[2], data[3], data[4]
+	jackstraw_method(mzs, intensities, 5, identifiers, 2, 0, 1)
