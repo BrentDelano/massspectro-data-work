@@ -328,7 +328,7 @@ def jackstraw_method(mzs, intensities, binsize, identifiers, rank, repetitions):
 	pvals_raw = j.pvals_raw
 
 	corrected = multipletests(pvals=pvals_raw)
-	return pvals_raw, corrected
+	return pvals_raw, corrected, j.F_obs, j.F_null
 
 
 def create_gaussian_noise(mzs):
