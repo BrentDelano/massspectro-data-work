@@ -27,13 +27,14 @@ import pandas as pd
 
 # takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
 # outputs 4 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
-#	the third a list of identifiers, the fourth a list of the names of the spectra, and the fifth the mgf file the spectrum comes from
+#	the third a list of identifiers, the fourth a list of the names of the spectra, the fifth the mgf file the spectrum comes from, and the sixth a list of the parent masses
 def read_mgf_binning(mgfFile):
 	mzs = []
 	intensities = []
 	identifiers = []
 	from_mgf = []
 	names = []
+	parent_masses = []
 	if isinstance(mgfFile, list):
 		for mgf_n in mgfFile:
 			with mgf.MGF(mgf_n) as reader:
@@ -46,6 +47,7 @@ def read_mgf_binning(mgfFile):
 						names.append(spectrum['params']['name'])
 					except KeyError:
 						names.append('unknown spectrum')
+					parent_masses.append(spectrum['params']['pepmass'][0])
 			scale(mzs, intensities)
 	else:
 		with mgf.MGF(mgfFile) as reader:
@@ -58,19 +60,22 @@ def read_mgf_binning(mgfFile):
 					names.append(spectrum['params']['name'])
 				except KeyError:
 					names.append('unknown spectrum')
+				parent_masses.append(spectrum['params']['pepmass'][0])
 		scale(mzs, intensities)
 
-	return mzs, intensities, identifiers, names, from_mgf
+	return mzs, intensities, identifiers, names, from_mgf, parent_masses
+
 
 # takes in .mzxml file file paths as strings (if more than one, then use a list of strings) and reads the .mzxml file
 # outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
-#	the third a list of identifiers, the fourth a list of the names of the spectra, and the fifth the mgf file the spectrum comes from
+#	the third a list of identifiers, the fourth a list of the names of the spectra, the fifth the mgf file the spectrum comes from, and the sixth a list of the parent masses
 def read_mzxml(mzxmlFile):
 	mzs = []
 	intensities = []
 	identifiers = []
 	from_mgf = []
 	names = []
+	parent_masses = []
 	if isinstance(mzxmlFile, list):
 		for mzxml_n in mzxmlFile:
 			with mzxml.read(mzxml_n) as reader:
@@ -83,6 +88,7 @@ def read_mzxml(mzxmlFile):
 						names.append(spectrum['params']['name'])
 					except KeyError:
 						names.append('unknown spectrum')
+					parent_masses.append(spectrum['params']['pepmass'][0])
 			scale(mzs, intensities)
 	else:
 		with mzxml.read(mzxmlFile) as reader: 
@@ -95,9 +101,10 @@ def read_mzxml(mzxmlFile):
 					names.append(spectrum['params']['name'])
 				except KeyError:
 					names.append('unknown spectrum')
+				parent_masses.append(spectrum['params']['pepmass'][0])
 		scale(mzs, intensities)
 
-		return mzs, intensities, identifiers, names, from_mgf
+		return mzs, intensities, identifiers, names, from_mgf, parent_masses
 
 
 def rmv_zero_intensities(mzs, intensities):

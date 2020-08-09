@@ -19,8 +19,8 @@ sys.path.insert(1, './jackstraw/jackstraw')
 import jackstraw
 from statsmodels.stats.multitest import multipletests
 
-def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, removalperc=50, peaks_df='', peaks_per_bin=0, rank=10, repetitions=10, mgf_out_filename='', log_out_filename=''):
-	"""takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
+def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, removalperc=50, peaks_df='', peaks_per_bin=0, rank=10, repetitions=10, within=5, mgf_out_filename='', log_out_filename=''):
+	""" takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
 		
 		Args:
 			mgf: filepath to a .mgf file or list of filepaths
@@ -35,11 +35,13 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 				if method==3: pca_compression()
 					binsize: size of bins for which spectra fall into - must initialize if method==3
 					removalperc: percentage of loadsxvar to remove
-				if method==4: jackstraw_method
+				if method==4: jackstraw_method()
 					binsize: size of bins for which spectra fall into - must initialize if method==4
 					rank: must initialize if method==4
 					repetitions: number of permutations - must initialize if method==4
-				if method is not 0-3: no filtration
+				if method==5: mz_near_parentmass()
+					within: counted masses will be within "within" of parent_masses
+				if method is not 0-5: no filtration
 			mgf_out_filename: .mgf filename to which new spectra are placed into
 			log_out_filename: .log filename to which output data is placed into (note: do not append to existing log files)
 
@@ -56,18 +58,19 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 			data = binning_ms.read_mzxml(mzxml)
 	else:
 		data = binning_ms.read_mgf_binning(mgf)
-	mzs, intensities, identifiers, names, from_mgf = data[0], data[1], data[2], data[3], data[4]
+	mzs, intensities, identifiers, names, from_mgf, parent_masses = data
 
-	remaff = False
+	logit = False
 	removed = 0
 	affected = 0
 	victims = []
 	compressed = []
+	near = []
 	if method == 0:
-		remaff = True
+		logit = True
 		removed, affected, victims = set_min_intens(mzs, intensities, min_intens, names, from_mgf)
 	elif method == 1:
-		remaff = True
+		logit = True
 		if binsize == 0 or peaks_per_bin == 0:
 			raise ValueError('Pass in values for binsize and peaks_per_bin')
 		ctp = greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names)
@@ -75,15 +78,17 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 	elif method == 2:
 		return create_gaussian_noise(mzs)
 	elif method == 3:
-		remaff = True
+		logit = True
 		removed, affected, victims = pca_compression(mzs, intensities, removalperc, names, from_mgf, binsize, only95var=False, peaks_df=peaks_df)
 	elif method == 4:
 		jackstraw_method(mzs, intensities, binsize, identifiers, rank, repetitions)
-
-	if method !=4:
+	elif method == 5:
+		logit = True
+		near = mz_near_parentmass(mzs, names, parent_masses, within)
+	else:
 		write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
 
-	if remaff:
+	if logit:
 		logging.basicConfig(filename=log_out_filename, level=logging.DEBUG, filemode='a+')
 		log = logging.getLogger()
 		
@@ -94,16 +99,23 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 			filt_method = 'greatest_peaks_in_windows(binsize=%s, peaks_per_bin=%s)' % (binsize, peaks_per_bin)
 		elif method == 3:
 			filt_method = 'pca_compression(binsize=%s)' % binsize
+		else:
+			filt_method = 'mz_near_parentmass(within=%s)' % within
 
-		message = '\nfiltration method;name of affected spectrum;m/z of removed peak;intensity of removed peak;.mgf file\n'
-		for v in victims:
-			message += '\n%s;%s;%s;%s;%s' % (filt_method, v[0], v[1], v[2], v[3])
+		if 0 <= method <=3:
+			message = '\nfiltration method;name of affected spectrum;m/z of removed peak;intensity of removed peak;.mgf file\n'
+			for v in victims:
+				message += '\n%s;%s;%s;%s;%s' % (filt_method, v[0], v[1], v[2], v[3])
+		else:
+			message = '\n;method;name of spectrum;number of m/z values within "within" of parent mass\n'
+			for n in near:
+				message += '\n%s;%s;%s' % (filt_method, n[0], n[1])
 
 		log.info(message)
 
 
 def write_to_mgf(mgfFile='', mzxmlFile='', mzs=[], intensities=[], filename=''):
-	"""writes data to a specified .mgf file
+	""" writes data to a specified .mgf file
 
 		Args:
 			mgfFile: original .mgf file which unspecified data is copied from (can be a list of files)
@@ -141,7 +153,7 @@ def write_to_mgf(mgfFile='', mzxmlFile='', mzs=[], intensities=[], filename=''):
 
 
 def set_min_intens(mzs, intensities, min_intens, names, identifiers):
-	"""removes any peaks with an intensity less than min_intens
+	""" removes any peaks with an intensity less than min_intens
 
 		Args:
 			mzs: a list of lists of the m/z ratios of the spectra
@@ -177,7 +189,7 @@ def set_min_intens(mzs, intensities, min_intens, names, identifiers):
 
 # returns: [0]: # of removed spectra, [1]: # of affected spectra
 def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names):
-	"""creates bins of width binsize of the m/z data for each spectra; sorts through peaks of each spectra and only keeps the k(peaks_per_bin) largest intensities of each bin
+	""" creates bins of width binsize of the m/z data for each spectra; sorts through peaks of each spectra and only keeps the k(peaks_per_bin) largest intensities of each bin
 		
 		Args:
 			mzs: a list of lists of the m/z ratios of the spectra
@@ -234,7 +246,7 @@ def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names):
 
 
 def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0.3, only95var=True, peaks_df=''):
-	"""uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
+	""" uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
 	    reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
 
 	    Args: 
@@ -290,7 +302,7 @@ def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0
 
 
 def remove_smallest_loadsxvar(loadings, expvars, removalperc):
-	"""further removes noise from pca by taking the sum of the loadings * variances from pca and removes the lowest removalperc, rounded down
+	""" further removes noise from pca by taking the sum of the loadings * variances from pca and removes the lowest removalperc, rounded down
 
 	    Args: 
 			loadings: 2x2 list of loadings from pca
@@ -331,8 +343,29 @@ def jackstraw_method(mzs, intensities, binsize, identifiers, rank, repetitions):
 	return pvals_raw, corrected, j.F_obs, j.F_null
 
 
+def mz_near_parentmass(mzs, names, parent_masses, w=5):
+	""" reports the number of peaks in spectra that are within w of the parent mass
+
+		Args:
+			mzs: a list of lists of the m/z ratios of the spectra
+			names: list of names of spectra (len(names)==len(mzs))
+			parent_masses: list of parent masses of spectra (len(parent_masses)==len(mzs))
+			w: counted masses will be within w of parent_masses
+
+		Returns:
+			near: list of lists of spectra ID, # of spectra within w of parent mass of spectra
+	"""
+	near = []
+	for n,mz in enumerate(mzs):
+		count = 0
+		for m in mz:
+			if abs(m - parent_masses[n]) < w:
+				count += 1
+		near.append([names[n], count])
+	return near
+
 def create_gaussian_noise(mzs):
-	"""adds Gaussian noise to the dataset
+	""" adds Gaussian noise to the dataset
 
 		Args:
 			mzs: a list of lists of the m/z ratios of the spectra
@@ -368,7 +401,7 @@ def create_gaussian_noise(mzs):
 
 
 def read_log(log_file):
-	"""takes in a list of log file paths and outputs data to a pandas dataframe
+	""" takes in a list of log file paths and outputs data to a pandas dataframe
 
 	    Args: 
 			log_file: list of file paths to a log file
@@ -389,7 +422,7 @@ def read_log(log_file):
 
 
 def graph_removed_data(df):
-	"""takes in a pandas dataframe (explained above) of data to graph (graphs a scatter of the data (x: m/z, y: intensity))
+	""" takes in a pandas dataframe (explained above) of data to graph (graphs a scatter of the data (x: m/z, y: intensity))
 
 	    Args: 
 			df: pandas dataframe (see read_log() for a detailed explanation of format of df)
@@ -404,7 +437,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
-	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: jackstraw_method(), 5: no filtration')
+	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: jackstraw_method(), 5: mz_near_parentmass(), 6: no filtration')
 	parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
 	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1 or 3')
 	parser.add_argument('-rmp', '--removalperc', type=float, metavar='', help='percentage of loadings x variances to remove - must initialize if method==3')
@@ -412,6 +445,7 @@ if __name__ == "__main__":
 	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
 	parser.add_argument('-ra', '--rank', type=int, metavar='', help='rank for jackstraw - only if method==4')
 	parser.add_argument('-rep', '--repetitions', type=int, metavar='', help='number of permutations - must initialize if method==4')
+	parser.add_argument('-w', '--within', type=int, metavar='', help='counted masses will be within "within" of parent_masses - must initialize if method==5')
 	parser.add_argument('-mf', '--mgf_filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
 	parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
 	parser.add_argument('-lfi', '--log_filename_input', nargs='*', type=str, metavar='', help='.log filepaths for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES)')
@@ -421,4 +455,4 @@ if __name__ == "__main__":
 		df = read_log(args.log_filename_input)
 		graph_removed_data(df)
 	else:
-		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.rank, args.repetitions, args.mgf_filename, args.log_filename)
+		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.rank, args.repetitions, args.within, args.mgf_filename, args.log_filename)
