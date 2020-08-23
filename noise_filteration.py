@@ -84,7 +84,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 		jackstraw_method(mzs, intensities, binsize, identifiers, rank, repetitions)
 	elif method == 5:
 		logit = True
-		near = mz_near_parentmass(mzs, names, parent_masses, within)
+		near, perc, too_large = mz_near_parentmass(mzs, names, parent_masses, within)
 	else:
 		write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
 
@@ -327,9 +327,25 @@ def remove_smallest_loadsxvar(loadings, expvars, removalperc):
 	return idcs
 
 
-# method taken from here: https://arxiv.org/abs/1308.6013
-# uses https://github.com/idc9/jackstraw/blob/master/jackstraw/jackstraw.py
 def jackstraw_method(mzs, intensities, binsize, identifiers, rank, repetitions):
+	""" jackstraw method as described here: https://arxiv.org/abs/1308.6013
+		uses methods from https://github.com/idc9/jackstraw/blob/master/jackstraw/jackstraw.py
+		uses https://www.statsmodels.org/dev/generated/statsmodels.stats.multitest.multipletests.html for statistical analysis
+
+		Args: 
+			mzs: a list of lists of the m/z ratios of the spectra
+			intensities: a list of lists of the intensities of the spectra
+			binsize: size of bins for which spectra fall into - must initialize if method==1
+			identifiers: list of spectra identifiers
+			rank: rank of matrix for jackstraw
+			repetitions: number of permutations to run through
+
+		Returns:
+			pvals_raw: raw p-values
+			corrected: see https://www.statsmodels.org/dev/generated/statsmodels.stats.multitest.multipletests.html
+			F_obs: observed F-statistics
+			F_null: null F-statistics
+	"""
 	bins = binning_ms.create_bins(mzs, binsize)
 	peaks = binning_ms.create_peak_matrix(mzs=mzs, intensities=intensities, bins=bins, identifiers=identifiers, minIntens=0)[0]
 	peaks.pop(0)
@@ -353,16 +369,27 @@ def mz_near_parentmass(mzs, names, parent_masses, w=5):
 			w: counted masses will be within w of parent_masses
 
 		Returns:
-			near: list of lists of spectra ID, # of spectra within w of parent mass of spectra
+			near: list of lists of spectra ID, # of peaks within w of parent mass of spectra
+			perc: percentage of peaks that are within w of parent mass
+			too_large: the spectra that have peaks larger than their parent mass
 	"""
 	near = []
+	near_total = 0
+	total = 0
+	too_large = []
 	for n,mz in enumerate(mzs):
 		count = 0
 		for m in mz:
-			if abs(m - parent_masses[n]) < w:
+			total += 1
+			if m > parent_masses[n]:
+				too_large.append(names[n])
+			if 0 < parent_masses[n] - m < w:
 				count += 1
 		near.append([names[n], count])
-	return near
+		near_total += count
+	perc = near_total/total * 100
+	return near, perc, too_large
+
 
 def create_gaussian_noise(mzs):
 	""" adds Gaussian noise to the dataset
