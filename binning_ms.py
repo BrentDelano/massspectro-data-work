@@ -236,7 +236,7 @@ def find_bin(value, bins):
 # minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 10)
 # maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
 # also returns blockedIntens, which is the numeber of intensities that were filtered out by the threshold noise filtering
-def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False, minIntens=10, maxIntens=0):
+def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False, minIntens=0, maxIntens=0):
 	if isinstance(mzs, list) and isinstance(intensities, list):
 		if isinstance(mzs[0], list) and isinstance(intensities[0], list):
 			peaks = []
