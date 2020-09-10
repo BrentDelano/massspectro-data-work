@@ -19,7 +19,7 @@ sys.path.insert(1, './jackstraw/jackstraw')
 import jackstraw
 from statsmodels.stats.multitest import multipletests
 
-def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, removalperc=50, peaks_df='', peaks_per_bin=0, rank=10, repetitions=10, within=5, mgf_out_filename='', log_out_filename=''):
+def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, removalperc=50, peaks_df='', peaks_per_bin=0, rank=10, repetitions=10, within=5, row_header=0, mgf_out_filename='', log_out_filename='', csv_out_filename=''):
 	""" takes in either .mgf files or an .mzxml file (reads only .mgf if both), reads it, applies noise filtering techniques, then creates a .mgf file of the updated mzs and intensities
 		
 		Args:
@@ -41,6 +41,10 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 					repetitions: number of permutations - must initialize if method==4
 				if method==5: mz_near_parentmass()
 					within: counted masses will be within "within" of parent_masses
+				if method==6: create_peak_matrix() (see binning_ms.py for full specifications)
+					binsize: size of bins for which spectra fal into - must initialize if method==6
+					csv_out_filename: csv filepath to output peaks matrix to - must initialize if method==6
+					row_header: if 0, then filename_scan# will be used to label each spectra. if 1, then the spectra name will be used
 				if method is not 0-5: no filtration
 			mgf_out_filename: .mgf filename to which new spectra are placed into
 			log_out_filename: .log filename to which output data is placed into (note: do not append to existing log files)
@@ -60,6 +64,11 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 		data = binning_ms.read_mgf_binning(mgf)
 	mzs, intensities, identifiers, names, from_mgf, parent_masses = data
 
+	num_peaks = 0
+	for i in intensities:
+		num_peaks += len(i)
+	num_spectra = len(intensities)
+
 	logit = False
 	removed = 0
 	affected = 0
@@ -73,7 +82,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 		logit = True
 		if binsize == 0 or peaks_per_bin == 0:
 			raise ValueError('Pass in values for binsize and peaks_per_bin')
-		ctp = greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names)
+		ctp = greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names, identifiers)
 		removed, affected, victims = ctp[0], ctp[1], ctp[2]
 	elif method == 2:
 		return create_gaussian_noise(mzs)
@@ -85,6 +94,19 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 	elif method == 5:
 		logit = True
 		near, perc, too_large = mz_near_parentmass(mzs, names, parent_masses, within)
+	elif method == 6:
+		bins = binning_ms.create_bins(mzs, binsize)
+		peaks = binning_ms.create_peak_matrix(mzs, intensities, bins)[0]
+		
+		low_b = [b[0] for b in bins]
+		for i,l in enumerate(low_b):
+			low_b[i] = 'Bin Lower Bound: %s' % str(l)
+
+		if not row_header == 1:
+			df = pd.DataFrame(data=peaks, columns=low_b, index=data[2])
+		else:
+			df = pd.DataFrame(data=peaks, columns=low_b, index=data[3])
+		df.to_csv(csv_out_filename[0])
 	else:
 		write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
 
@@ -107,11 +129,29 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, remov
 			for v in victims:
 				message += '\n%s;%s;%s;%s;%s' % (filt_method, v[0], v[1], v[2], v[3])
 		else:
-			message = '\n;method;name of spectrum;number of m/z values within "within" of parent mass\n'
+			message = '\n;method;name of spectrum;number of m/z values within "within" of parent mass;number of m/z > parent_mass\n'
 			for n in near:
-				message += '\n%s;%s;%s' % (filt_method, n[0], n[1])
+				message += '\n%s;%s;%s;%s' % (filt_method, n[0], n[1], n[2])
 
 		log.info(message)
+
+	if mgf_out_filename:
+		write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
+
+	# if 0 <= method <= 5:
+	# 	avg_removed = removed / num_spectra
+	# 	x = [u'Number of\nRemoved Peaks', u'Average Removed\nPeaks per\nSpectra', u'Original Number\nof Peaks']
+	# 	y = [removed, avg_removed, num_peaks]
+		
+	# 	fig, ax = plt.subplots()    
+	# 	width = 0.75
+	# 	ind = np.arange(len(y))
+	# 	ax.barh(ind, y, width, color="blue")
+	# 	ax.set_yticks(ind+width/2)
+	# 	ax.set_yticklabels(x, minor=False)
+	# 	for i, v in enumerate(y):
+	# 		ax.text(v, i, str(v), color='blue', fontweight='bold')
+	# 	plt.show()
 
 
 def write_to_mgf(mgfFile='', mzxmlFile='', mzs=[], intensities=[], filename=''):
@@ -188,7 +228,7 @@ def set_min_intens(mzs, intensities, min_intens, names, identifiers):
 
 
 # returns: [0]: # of removed spectra, [1]: # of affected spectra
-def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names):
+def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names, identifiers):
 	""" creates bins of width binsize of the m/z data for each spectra; sorts through peaks of each spectra and only keeps the k(peaks_per_bin) largest intensities of each bin
 		
 		Args:
@@ -196,6 +236,8 @@ def greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names):
 			intensities: a list of lists of the intensities of the spectra
 			binsize: width of bins for which m/z data will fall into
 			peaks_per_bin: number of peaks to be kept within each bin
+			names: list of names of spectra
+			identifiers: list of spectra identifiers
 
 		Returns:
 			[0]: number of removed peaks
@@ -253,7 +295,7 @@ def pca_compression(mzs, intensities, removalperc, names, identifiers, binsize=0
 			mzs: a list of lists of the m/z ratios of the spectra
 			intensities: a list of lists of the intensities of the spectra
 			identifiers: list of spectra identifiers
-			removalperc : percentage of components to remove
+			removalperc: percentage of components to remove
 			binsize: width of bins for which m/z data will fall into
 			only95var: only keep componenets that explain 95% of the variance if true
 
@@ -369,7 +411,7 @@ def mz_near_parentmass(mzs, names, parent_masses, w=5):
 			w: counted masses will be within w of parent_masses
 
 		Returns:
-			near: list of lists of spectra ID, # of peaks within w of parent mass of spectra
+			near: list of lists of [spectra ID, # of peaks within w of parent mass of spectra]
 			perc: percentage of peaks that are within w of parent mass
 			too_large: the spectra that have peaks larger than their parent mass
 	"""
@@ -379,13 +421,15 @@ def mz_near_parentmass(mzs, names, parent_masses, w=5):
 	too_large = []
 	for n,mz in enumerate(mzs):
 		count = 0
+		big_count = 0
 		for m in mz:
 			total += 1
 			if m > parent_masses[n]:
 				too_large.append(names[n])
+				big_count += 1
 			if 0 < parent_masses[n] - m < w:
 				count += 1
-		near.append([names[n], count])
+		near.append([names[n], count, big_count])
 		near_total += count
 	perc = near_total/total * 100
 	return near, perc, too_large
@@ -464,17 +508,19 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Filter out noise from .mgf or .mzxml data')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
-	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: jackstraw_method(), 5: mz_near_parentmass(), 6: no filtration')
+	parser.add_argument('-m', '--method', type=int, metavar='', help='0: set_min_intens(), 1: greatest_peaks_in_windows() 2: create_gaussian_noise() 3: pca_compression() 4: jackstraw_method(), 5: mz_near_parentmass(), 6: create_peak_matrix(), 7: no filtration')
 	parser.add_argument('-mi', '--min_intens', type=float, metavar='', help='minimum intensity cutoff - must initialize if method==0')
-	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1 or 3')
+	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1, 3, or 6')
 	parser.add_argument('-rmp', '--removalperc', type=float, metavar='', help='percentage of loadings x variances to remove - must initialize if method==3')
 	parser.add_argument('-pks', '--peaks_df', type=str, metavar='', help='csv filepath. If initialized, will return a csv file of the bins and peaks matrix - only if method==3')
 	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
 	parser.add_argument('-ra', '--rank', type=int, metavar='', help='rank for jackstraw - only if method==4')
 	parser.add_argument('-rep', '--repetitions', type=int, metavar='', help='number of permutations - must initialize if method==4')
 	parser.add_argument('-w', '--within', type=int, metavar='', help='counted masses will be within "within" of parent_masses - must initialize if method==5')
+	parser.add_argument('-rh', '--row_header', type=int, metavar='', help='if 0, then filename_scan# will be used to label each spectra. if 1, then the spectra name will be used')
 	parser.add_argument('-mf', '--mgf_filename', type=str, metavar='', help='.mgf filename to which new spectra are placed into')
 	parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
+	parser.add_argument('-csvf', '--csv_filename', nargs='*', type=str, metavar='', help='.csv filepath to output peaks matrix to - must initialize if method==6')
 	parser.add_argument('-lfi', '--log_filename_input', nargs='*', type=str, metavar='', help='.log filepaths for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES)')
 	args = parser.parse_args()
 
@@ -482,4 +528,4 @@ if __name__ == "__main__":
 		df = read_log(args.log_filename_input)
 		graph_removed_data(df)
 	else:
-		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.rank, args.repetitions, args.within, args.mgf_filename, args.log_filename)
+		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.removalperc, args.peaks_df, args.peaks_per_bin, args.rank, args.repetitions, args.within, args.row_header, args.mgf_filename, args.log_filename, args.csv_filename)

@@ -1,8 +1,8 @@
 # Written by Brent Delano
 # 4/6/2020
 # Takes a .mgf file and creates a matrix of where m/z ratios from spectra fit into bins of different sizes
-# The rows of the matrix are the bins (bin min is the lowest m/z value, truncated, and bin max at the greatest m/z value, rounded up) 
-# The columns of the matrix are the spectra
+# The columns of the matrix are the bins (bin min is the lowest m/z value, truncated, and bin max at the greatest m/z value, rounded up) 
+# The rows of the matrix are the spectra
 # If an m/z ratio of a spectra (m) fits into a bin (n), then the value (n,m) on the matrix will be the intensity value of that m/z ratio;
 #	if not, then it will be 0
 # Able to add Gaussian noise to the dataset in order to visualize the effect on bins
@@ -36,17 +36,17 @@ def read_mgf_binning(mgfFile):
 	names = []
 	parent_masses = []
 	if isinstance(mgfFile, list):
-		for mgf_n in mgfFile:
+		for count,mgf_n in enumerate(mgfFile):
 			with mgf.MGF(mgf_n) as reader:
 				for j,spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
-					identifiers.append(mgf_n + '_' + str(j+1))
+					identifiers.append(mgf_n + '_scan' + spectrum['params']['scans'])
 					from_mgf.append(mgf_n)
 					try:
-						names.append(spectrum['params']['name'])
+						names.append(mgf_n + '_' + spectrum['params']['name'])
 					except KeyError:
-						names.append('unknown spectrum')
+						names.append(mgf_n + '_' + 'unknown spectrum (%s spectrum #%s)' % (mgfFile[count], j))
 					parent_masses.append(spectrum['params']['pepmass'][0])
 			scale(mzs, intensities)
 	else:
@@ -54,12 +54,12 @@ def read_mgf_binning(mgfFile):
 			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
-				identifiers.append(mgfFile + '_' + str(j+1))
+				identifiers.append(mgfFile + '_scan' + spectrum['params']['scans'])
 				from_mgf.append(mgfFile)
 				try:
-					names.append(spectrum['params']['name'])
+					names.append(mgfFile + '_' + spectrum['params']['name'])
 				except KeyError:
-					names.append('unknown spectrum')
+					names.append(mgfFile + '_' + 'unknown spectrum (%s spectrum #%s)' % (mgfFile, j))
 				parent_masses.append(spectrum['params']['pepmass'][0])
 		scale(mzs, intensities)
 
@@ -77,17 +77,17 @@ def read_mzxml(mzxmlFile):
 	names = []
 	parent_masses = []
 	if isinstance(mzxmlFile, list):
-		for mzxml_n in mzxmlFile:
+		for count,mzxml_n in enumerate(mzxmlFile):
 			with mzxml.read(mzxml_n) as reader:
 				for j,spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
-					identifiers.append(mzxml_n + '_' + str(j+1))
+					identifiers.append(mzxml_n + '_scan' + spectrum['params']['scans'])
 					from_mgf.append(mzxml_n)
 					try:
-						names.append(spectrum['params']['name'])
+						names.append(mzxml_n + '_' + spectrum['params']['name'])
 					except KeyError:
-						names.append('unknown spectrum')
+						names.append(mzxml_n + '_' + 'unknown spectrum (%s spectrum #%s)' % (mgfFile, j))
 					parent_masses.append(spectrum['params']['pepmass'][0])
 			scale(mzs, intensities)
 	else:
@@ -95,12 +95,12 @@ def read_mzxml(mzxmlFile):
 			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
-				identifiers.append(mzxmlFile + '_' + str(j+1))
+				identifiers.append(mzxmlFile + '_scan' + spectrum['params']['scans'])
 				from_mgf.append(mzxmlFile)
 				try:
-					names.append(spectrum['params']['name'])
+					names.append(mzxmlFile + '_' + spectrum['params']['name'])
 				except KeyError:
-					names.append('unknown spectrum')
+					names.append(mzxmlFile + '_' + 'unknown spectrum (%s spectrum #%s)' % (mgfFile[count], j))
 				parent_masses.append(spectrum['params']['pepmass'][0])
 		scale(mzs, intensities)
 
@@ -236,12 +236,10 @@ def find_bin(value, bins):
 # minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 10)
 # maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
 # also returns blockedIntens, which is the numeber of intensities that were filtered out by the threshold noise filtering
-def create_peak_matrix(mzs, intensities, bins, identifiers=0, listIfMultMZ=False, minIntens=0, maxIntens=0):
+def create_peak_matrix(mzs, intensities, bins, listIfMultMZ=False, minIntens=0, maxIntens=0):
 	if isinstance(mzs, list) and isinstance(intensities, list):
 		if isinstance(mzs[0], list) and isinstance(intensities[0], list):
 			peaks = []
-			if identifiers != 0:
-				peaks.append(identifiers)
 			blockedIntens = 0
 			for i,mz in enumerate(mzs):
 				temp = [0] * len(bins)
@@ -584,6 +582,7 @@ if __name__ == "__main__":
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
 	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into')
+	parser.add_argument('-rh', '--row_header', type=int, metavar='', help='if 0, then filename_scan# will be used to label each spectra. if 1, then the spectra name will be used')
 	parser.add_argument('-f', '--filename', type=str, metavar='', help='filepath to output data to')
 	args = parser.parse_args()
 
@@ -593,11 +592,14 @@ if __name__ == "__main__":
 	else:
 		data = read_mzxml_binning(args.mzxml)
 	bins = create_bins(data[0], args.binsize)
-	peaks = create_peak_matrix(data[0], data[1], bins, data[2])[0]
-	headers = peaks[0]
-	peaks.pop(0)
-	for i,h in enumerate(headers):
-		peaks[i].insert(0, h)
+	peaks = create_peak_matrix(data[0], data[1], bins)[0]
+	
+	low_b = [b[0] for b in bins]
+	for i,l in enumerate(low_b):
+		low_b[i] = 'Bin Lower Bound: %s' % str(l)
 
-	df = pd.DataFrame(peaks)
+	if not args.row_header == 1:
+		df = pd.DataFrame(data=peaks, columns=low_b, index=data[2])
+	else:
+		df = pd.DataFrame(data=peaks, columns=low_b, index=data[3])
 	df.to_csv(args.filename)
