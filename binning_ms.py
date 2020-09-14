@@ -25,10 +25,20 @@ import pickle
 import argparse
 import pandas as pd
 
-# takes in .mgf file file paths as strings (if more than one, then use a list of strings) and reads the .mgf file
-# outputs 4 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
-#	the third a list of identifiers, the fourth a list of the names of the spectra, the fifth the mgf file the spectrum comes from, and the sixth a list of the parent masses
 def read_mgf_binning(mgfFile):
+	""" reads .mgf files into executable data for these functions
+
+		Args:
+			mgfFile: list of (or just one) .mgf file paths (if more than one, then the data will be combined)
+
+		Returns:
+			mzs: a list of lists of the m/z ratios
+			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
+			identifiers: a list of the identifiers for each spectra
+			names: a list of the names of the spectra
+			from_mgf: the mgf file each spectra comes from
+			parent_masses: a list of the parent masses that each spectra correspond to
+	"""
 	mzs = []
 	intensities = []
 	identifiers = []
@@ -66,10 +76,20 @@ def read_mgf_binning(mgfFile):
 	return mzs, intensities, identifiers, names, from_mgf, parent_masses
 
 
-# takes in .mzxml file file paths as strings (if more than one, then use a list of strings) and reads the .mzxml file
-# outputs 3 lists of lists: the first holding the m/z ratios, the second holding a list holding the respective intensities, 
-#	the third a list of identifiers, the fourth a list of the names of the spectra, the fifth the mgf file the spectrum comes from, and the sixth a list of the parent masses
 def read_mzxml(mzxmlFile):
+	""" reads .mgf files into executable data for these functions
+
+		Args:
+			mzxmlFile: list of (or just one) .mzxml file paths (if more than one, then the data will be combined)
+
+		Returns:
+			mzs: a list of lists of the m/z ratios
+			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
+			identifiers: a list of the identifiers for each spectra
+			names: a list of the names of the spectra
+			from_mgf: the mgf file each spectra comes from
+			parent_masses: a list of the parent masses that each spectra correspond to
+	"""
 	mzs = []
 	intensities = []
 	identifiers = []
@@ -108,6 +128,12 @@ def read_mzxml(mzxmlFile):
 
 
 def rmv_zero_intensities(mzs, intensities):
+	""" removes all peaks that have intensity = 0
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
+	"""
 	poppers = []
 	for n,intens in enumerate(intensities):
 		for m,i in enumerate(intens):
@@ -120,6 +146,12 @@ def rmv_zero_intensities(mzs, intensities):
 
 
 def scale(mzs, intensities):
+	""" divides all the intensities by the largest intensity such that they range on a scale from 0-1
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
+	"""
 	rmv_zero_intensities(mzs, intensities)
 	intens_1d = []
 	for intens in intensities:
@@ -134,39 +166,53 @@ def scale(mzs, intensities):
 				intensities[j][k] = intensities[j][k]/max_int
 
 
-# finds the minimum bin size such that each m/z ratio within a spectra will fall into its own bin
 def get_min_binsize(mzs):
-	min = 0
+	""" finds the maximum bin size such that each m/z ratio within a spectra will fall into its own bin
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+
+		Returns:
+			max: maximum bin size such that each m/z ratio within a spectra will fall into its own bin
+	"""
+	max = 0
 	for spec in mzs:
 		if isinstance(spec, list):
 			temp = copy.copy(spec)
 			temp.sort()
-			if min == 0:
-				min = temp[1]-temp[0]
+			if max == 0:
+				max = temp[1]-temp[0]
 			for n,mz in enumerate(temp):
 				if n < len(temp) - 1:
 					diff = abs(mz - temp[n+1])
-					if diff < min:
-						min = diff
+					if diff < max:
+						max = diff
 		else:
 			if isinstance(mzs, list):
 				for j,m in enumerate(mzs):
 					if j == 0:
-						min = mzs[j+1] - m
+						max = mzs[j+1] - m
 					else:
 						if j < len(mzs) - 1:
  							diff = mzs[j+1] - m
- 							if diff < min:
- 								min = diff
+ 							if diff < max:
+ 								max = diff
 				break
 			else:
 				raise TypeError('mzs should either be a 1D or 2D list')
-	return min
+	return max
 
 
-# takes in m/z ratios as a list of lists (first dimension is lists representing the spectra, second dimension are the m/z values in each spectra list
-# creates a list of lists of bins of size binsize
 def create_bins(mzs, binsize):
+	""" creates a list of lists of bins of width binsize
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+			binsize: bin width
+
+		Returns:
+			bins: list of tuples (in R2) of width of size binsize
+	"""
 	if binsize <= 0:
 		raise ValueError('binsize should be >= 0')
 	elif isinstance(mzs, list):
@@ -190,8 +236,16 @@ def create_bins(mzs, binsize):
 		raise TypeError('mzs should either be a 1D or 2D list')
 
 
-# given a list of lists of m/z data, it will return the minimum and maximum m/z values in the lists
 def findMinMax(mzs):
+	""" finds the minimum and maximum m/z values in the lists
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+
+		Returns:
+			minmz: smallest m/z value in mzs
+			maxmz: largest m/z value in mzs
+	"""
 	minmz = 0
 	maxmz = 0
 	for i,mz in enumerate(mzs):
@@ -210,9 +264,16 @@ def findMinMax(mzs):
 	return minmz, maxmz
 
 
-# from https://www.python-course.eu/pandas_python_binning.php
-# finds the bin that a given value fits into
 def find_bin(value, bins):
+	""" finds the corresponding bin index of bins that value falls into
+
+		Args:
+			value: the m/z value
+			bins: the bins (as specified by create_bins)
+
+		Returns:
+			i: the index of the bin in bins that value falls into
+	"""
 	if isinstance(bins, list):
 		if isinstance(bins[0], list):
 		    for i in range(0, len(bins)):
@@ -224,19 +285,24 @@ def find_bin(value, bins):
 	else:
 		raise TypeError('Bins should be a 2D list')
 
-	
-# creates a matrix that finds the bins that the m/z ratios in a spectra fall into
-# if a m/z ratio of a spectra falls into a bin, then the intensity of that ratio will be placed into the bin (if not, the bin will have a 0)
-# only accounts for m/z ratios with intensity values > 10
-# rows (second dimension) are the bins that are either 0 or an intensity value, columns (first dimension) are the spectra
-# if multiple m/z ratios of a spectra fall into a single bin, a list of intensities will be placed into the bin
-# NOTE: the entry peaks[0] contains a list of identifiers for each column of the binned data (each column represents a spectra)
-#	the list of identifiers is a list of strings, each string in the following format: filepath_scan#
-# listIfMultMZ: optional - if true, then if there is >1 m/z in a bin, it will create a list in that bin; if false, it will add the intensities together
-# minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 10)
-# maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
-# also returns blockedIntens, which is the numeber of intensities that were filtered out by the threshold noise filtering
+
 def create_peak_matrix(mzs, intensities, bins, listIfMultMZ=False, minIntens=0, maxIntens=0):
+	""" creates a matrix that finds the bins that the m/z ratios in a spectra fall into
+		if a m/z ratio of a spectra falls into a bin, then the intensity of that ratio will be placed into the bin (if not, the bin will have a 0)
+		columns (second dimension) correspond to the bins that hold either 0 or an intensity value, rows (first dimension) are the individual spectra
+		if multiple m/z ratios of a spectra fall into a single bin, the intensities will be either summed together in that bin, or listed (if listIfMultMZ==True)
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
+			listIfMultMZ: optional - if true, then if there is >1 m/z in a bin, it will create a list in that bin; if false, it will add the intensities together
+			minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 0)
+			maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
+
+		Returns:
+			peaks: peaks matrix (as specified above)
+			blockedIntens: number of intensities blocked by minIntens and maxIntens
+	"""
 	if isinstance(mzs, list) and isinstance(intensities, list):
 		if isinstance(mzs[0], list) and isinstance(intensities[0], list):
 			peaks = []
@@ -285,23 +351,6 @@ def create_peak_matrix(mzs, intensities, bins, listIfMultMZ=False, minIntens=0, 
 							blockedIntens += 1
 				peaks.append(temp)
 
-			# remove = []
-			# for i in range(len(peaks[1])):
-			# 	delete = True
-			# 	for j,p in enumerate(peaks):
-			# 		if j != 0:
-			# 			if p[i] != 0:
-			# 				delete = False
-			# 				break
-			# 	if delete == True:
-			# 		remove.append(i)
-			# for j,p in enumerate(peaks):
-			# 	if j != 0:
-			# 		for r in reversed(remove):
-			# 			if j == 1:
-			# 				bins.pop(r)
-			# 			p.pop(r)
-
 			return peaks, blockedIntens
 		else: 
 			raise TypeError('mzs and intensities should be 2D lists')
@@ -309,15 +358,29 @@ def create_peak_matrix(mzs, intensities, bins, listIfMultMZ=False, minIntens=0, 
 		raise TypeError('mzs and intensities should be 2D lists')
 
 
-# uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
-# reduces the number of bins by pca
-def compress_bins(filled_bins):
+def compress_bins(filled_bins, n_components=0):
+	""" uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca to perform pca on peaks matrix
+
+		Args:
+			filled_bins: peaks matrix as specified and return by create_peak_matrix()
+			n_components: number of components to keep (default is all, if 0 < n_components < 1 then components that explain n_components*100% of variance will be kept)
+
+		Returns:
+			compressed: compressed dataset (pca.fit_transform() on peaks matrix)
+			components: components/loadings (pca.components_)
+			var_ratio: explained variance ratio by each component (pca.explained_variance_ratio_)
+	"""
 	if isinstance(filled_bins, list):
 		if isinstance(filled_bins[1], list):
 			if isinstance(filled_bins[0][0], str):
 				filled_bins.pop(0)
 			np_bins = np.array(filled_bins)
-			pca = PCA()
+			if n_components == 0:
+				pca = PCA()
+			elif n_components < 1:
+				pca = PCA(n_components=n_components, svd_solver='full')
+			else:
+				pca = PCA(n_components=n_components)
 			compressed = pca.fit_transform(np_bins)
 			components = pca.components_
 			var_ratio = pca.explained_variance_ratio_
@@ -328,30 +391,14 @@ def compress_bins(filled_bins):
 		raise TypeError('filled_bins should be a 2D list')
 
 
-# uses https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html#examples-using-sklearn-decomposition-pca
-# reduces the number of bins by pca (only keeps the componenets that explain 95% of the variance)
-def compress_bins_sml(filled_bins):
-	if isinstance(filled_bins, list):
-		if isinstance(filled_bins[0], list):
-			if isinstance(filled_bins[0][0], str):
-				filled_bins.pop(0)
-			np_bins = np.array(filled_bins)
-			pca = PCA(n_components=0.95, svd_solver='full')
-			compressed = pca.fit_transform(np_bins)
-			components = pca.components_
-			var_ratio = pca.explained_variance_ratio_
-			return compressed, components, var_ratio	
-		else:
-			raise TypeError('filled_bins should be a 2D list')
-	else:
-		raise TypeError('filled_bins should be a 2D list')
-
-
-# Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html to graph
-# 	m/z data on a histogram; 
-# Also plots the probability density function of the distribution (in red)
-# Creates bins of similar dimension to create_bins()
 def graph_mzs(mzs, numBins):
+	""" plots m/z data as a histogram (corresponding to the number of peaks that fall into numBins # of bins)
+		additionally plots the PDF of the distribution (in red)
+
+		Args:
+			mzs: a list of lists of the m/z ratios
+			numBins: number of bins to place m/z values into
+	"""
 	mzs_od = []
 	for mz in mzs:
 		for m in mz:
@@ -368,8 +415,12 @@ def graph_mzs(mzs, numBins):
 	plt.show()
 
 
-# graphs the first two dimensions of the compressed dataset
-def graph_compression(compressed):
+def graph_pca_compression(compressed):
+	""" graphs the first two dimensions of the compressed dataset
+
+		Args:
+			compressed: peaks matrix that pca has been performed on (as specified by compress_bins())
+	"""
 	s1 = compressed[1]
 	s2 = compressed[2]
 	
@@ -387,9 +438,12 @@ def graph_compression(compressed):
 	plt.show()
 
 
-# graphs the directions of maximum variance
-# Uses matplot lib and https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.random.normal.html
 def graph_components(components):
+	""" graphs the directions of maximum variance from pca on peaks matrix
+
+		Args:
+			components: components/loadings (pca.components_)
+	"""
 	comp_od = []
 	for i in range(len(components[0])):
 		temp_sum = 0
@@ -403,8 +457,12 @@ def graph_components(components):
 	plt.show()
 
 
-# creates a scree plot of the variance for all the axis
 def graph_scree_plot_variance(variance_ratio):
+	""" creates a scree plot of the variance for all of the components from pca on peaks matrix
+
+		Args:
+			variance_ratio: explained variance ratio by each component (pca.explained_variance_ratio_)
+	"""
 	x = list(range(1, len(variance_ratio) + 1))
 	plt.plot(x, variance_ratio, '-o')
 	plt.ylabel('Variance')
@@ -413,8 +471,13 @@ def graph_scree_plot_variance(variance_ratio):
 	plt.show()
 
 
-# makes a bar chart and a histogram of abs(loadings)*variance for all axis
 def graph_loadings_by_variance(components, variance_ratio):
+	""" makes a bar chart and a histogram of abs(loadings)*variance for all components of pca on peaks matrix
+
+		Args:
+			components: components/loadings (pca.components_)
+			variance_ratio: explained variance ratio by each component (pca.explained_variance_ratio_)
+	"""
 	comp_sum = []
 	for c in components:
 		nsum = 0
@@ -441,8 +504,38 @@ def graph_loadings_by_variance(components, variance_ratio):
 	plt.show()
 
 
-# makes a bar chart and a histogram of the sum of the intensities in each bin for all spectra
+def graph_loadsxvar_mostvar(components, variance_ratio):
+	""" scatter plot of abs(loadings)*variance for the axis that explain 95% of the variance for pca on the peaks matrix
+
+		Args:
+			components: components/loadings (pca.components_)
+			variance_ratio: explained variance ratio by each component (pca.explained_variance_ratio_)
+	"""
+	comp_sum = []
+	for c in components:
+		nsum = 0
+		for j in c:
+			nsum = nsum + abs(j)
+		comp_sum.append(nsum)
+
+	lbv = []
+	for n,c in enumerate(comp_sum):
+		lbv.append(c * variance_ratio[n])
+
+	x = list(range(len(lbv)))
+	plt.scatter(x, lbv)
+	plt.xlabel('First 27 Axis')
+	plt.ylabel('|Loadings| x Variance')
+	plt.title('|Loadings| x Variance for Axis that Explain 95 Percent of Variance')
+	plt.show()
+
+
 def graph_bins_vs_intens(binned_peaks):
+	""" makes a bar chart and a histogram of the sum of the intensities in each bin for all spectra for the peaks matrix
+
+		Args:
+			binned_peaks: peaks matrix as specified and returned by create_peaks_matrix()
+	"""
 	binned_peaks.pop(0)
 	bin_pks_sum = []
 	for i in range(len(binned_peaks[0])):
@@ -465,26 +558,6 @@ def graph_bins_vs_intens(binned_peaks):
 	plt.title('Histogram of Frequency of Sum of Intensities per Bin')
 	plt.show()
 
-
-# scatter plot of abs(loadings)*variance for the axis that explain 95% of the variance
-def graph_loadsxvar_mostvar(components, variance_ratio):
-	comp_sum = []
-	for c in components:
-		nsum = 0
-		for j in c:
-			nsum = nsum + abs(j)
-		comp_sum.append(nsum)
-
-	lbv = []
-	for n,c in enumerate(comp_sum):
-		lbv.append(c * variance_ratio[n])
-
-	x = list(range(len(lbv)))
-	plt.scatter(x, lbv)
-	plt.xlabel('First 27 Axis')
-	plt.ylabel('|Loadings| x Variance')
-	plt.title('|Loadings| x Variance for Axis that Explain 95 Percent of Variance')
-	plt.show()
 
 
 # # for testing
