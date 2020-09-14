@@ -526,21 +526,33 @@ def graph_removed_data(df):
 	plt.show()
 
 
-def graph_pca_variance_ratios_for_binsizes(df):
+def graph_pca_variance_ratios_for_binsizes(df, n_components=0):
 	""" graphs the output of pca_variance_ratios_for_binsizes()
 
 		Args:
 			df: dataframe as created by pca_variance_ratios_for_binsizes()
+			n_components: number of components to keep in graphs (Special cases: if n_components==0, then all components kept; if 0 < n_components < 1, then n_components * 100% of components are kept)
 	"""
-	fig, axs = plt.subplots(df.shape[1])
-	fig.suptitle('agp3k.mgf binsizes 0.1-3 (0.3 gap between each) explained variances')
+	x = int(np.round(np.sqrt(df.shape[1])))
+	y = int(np.ceil(df.shape[1]/x))
+	fig, axs = plt.subplots(y, x)
+	fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+	fig.suptitle('graph_pca_variance_ratios_for_binsizes()')
 
-	n = 0
+	yp, xp = 0, 0
 	for name,cols in df.iteritems():
 		vals = cols.to_numpy()
 		vals = vals[np.logical_not(np.isnan(vals))]
-		axs[n].scatter(x=range(1, len(vals)+1), y=vals)
-		n += 1
+		if 0 < n_components < 1:
+			vals = vals[0:int(np.round(len(vals) * n_components))]
+		elif n_components >= 1:
+			vals = vals[0:n_components]
+		if xp >= x:
+			xp = 0
+			yp += 1
+		axs[yp][xp].scatter(x=range(1, len(vals)+1), y=vals)
+		axs[yp][xp].set_title(name)
+		xp += 1
 	plt.show()
 
 
@@ -553,7 +565,7 @@ if __name__ == "__main__":
 	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into - must initialize if method==1, 3, or 6')
 	parser.add_argument('-bs', '--binsizes', nargs='*', type=float, metavar='', help='list of binsizes - must initialize if method==7')
 	parser.add_argument('-rmp', '--removalperc', type=float, metavar='', help='percentage of loadings x variances to remove - must initialize if method==3')
-	parser.add_argument('-nc', '--n_components', type=float, metavar='', help='number of components to keep (if 0, then all are kept; elif < 1, then the percentage of components that explain this percentage will be kept; else, then this number of components will be kept) - must initialize if method==3 or 7')
+	parser.add_argument('-nc', '--n_components', type=float, metavar='', help='number of components to keep (if 0, then all are kept; elif < 1, then the percentage of components that explain this percentage will be kept; else, then this number of components will be kept) - must initialize if method==3 or 7 or -csvi is initialized')
 	parser.add_argument('-ppb', '--peaks_per_bin', type=int, metavar='', help='number of spectra to keep in each bin - must initialize if method==1')
 	parser.add_argument('-ra', '--rank', type=int, metavar='', help='rank for jackstraw - only if method==4')
 	parser.add_argument('-rep', '--repetitions', type=int, metavar='', help='number of permutations - must initialize if method==4')
@@ -563,7 +575,7 @@ if __name__ == "__main__":
 	parser.add_argument('-lf', '--log_filename', type=str, metavar='', help='.log filename to which output data is placed into')
 	parser.add_argument('-csvf', '--csv_filename', nargs='*', type=str, metavar='', help='.csv filepath to output peaks matrix to - must initialize if method==6 or 7')
 	parser.add_argument('-lfi', '--log_filename_input', nargs='*', type=str, metavar='', help='.log filepaths for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES)')
-	parser.add_argument('-csvi', '--csv_filename_input', type=str, metavar='', help='.csv filepath (created by pca_variance_ratios_for_binsizes()) for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES, will do graph_pca_variance_ratios_for_binsizes())')
+	parser.add_argument('-csvi', '--csv_filename_input', type=str, metavar='', help='.csv filepath (created by pca_variance_ratios_for_binsizes()) for which to graph data from (DO NOT INITIALIZE PREVIOUS VARIABLES, EXCEPT FOR n_components, will do graph_pca_variance_ratios_for_binsizes())')
 	args = parser.parse_args()
 
 	if args.log_filename_input:
@@ -571,6 +583,6 @@ if __name__ == "__main__":
 		graph_removed_data(df)
 	elif args.csv_filename_input:
 		df = pd.read_csv(args.csv_filename_input, index_col=0)
-		graph_pca_variance_ratios_for_binsizes(df)
+		graph_pca_variance_ratios_for_binsizes(df, args.n_components)
 	else:
 		noise_filteration(args.mgf, args.mzxml, args.method, args.min_intens, args.binsize, args.binsizes, args.removalperc, args.n_components, args.peaks_per_bin, args.rank, args.repetitions, args.within, args.row_header, args.mgf_filename, args.log_filename, args.csv_filename)
