@@ -25,16 +25,18 @@ import pickle
 import argparse
 import pandas as pd
 
-def read_mgf_binning(mgfFile):
+def read_mgf_binning(mgfFile, row_header=''):
 	""" reads .mgf files into executable data for these functions
 
 		Args:
 			mgfFile: list of (or just one) .mgf file paths (if more than one, then the data will be combined)
+			row_header: the row headers for the matrix (should be passed in as a list of strings)
+				Ex. ['params', 'scans'] (this is the default)
 
 		Returns:
 			mzs: a list of lists of the m/z ratios
 			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
-			identifiers: a list of the identifiers for each spectra
+			identifiers: a list of the identifiers for each spectra (this is the row headers of the matrix, which corresponds to the input row_header)
 			names: a list of the names of the spectra
 			from_mgf: the mgf file each spectra comes from
 			parent_masses: a list of the parent masses that each spectra correspond to
@@ -51,7 +53,18 @@ def read_mgf_binning(mgfFile):
 				for j,spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
-					identifiers.append(mgf_n + '_scan' + spectrum['params']['scans'])
+					if not row_header:
+						try:
+							identifiers.append(mgf_n + '_scan' + spectrum['params']['scans'])
+						except KeyError:
+							identifiers.append(mgf_n + '_' + 'unknown scan (%s spectrum #%s)' % (mgfFile[count], j))
+					else:
+						request = spectrum
+						for r in row_header:
+							request = request[r]
+						request = str(request)
+						request = request.replace(',', '_')
+						identifiers.append(mgf_n + '_' + request)
 					from_mgf.append(mgf_n)
 					try:
 						names.append(mgf_n + '_' + spectrum['params']['name'])
@@ -64,7 +77,18 @@ def read_mgf_binning(mgfFile):
 			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
-				identifiers.append(mgfFile + '_scan' + spectrum['params']['scans'])
+				if not row_header:
+					try:
+						identifiers.append(mgfFile + '_scan' + spectrum['params']['scans'])
+					except KeyError:
+						identifiers.append(mgfFile + '_' + 'unknown scan (%s spectrum #%s)' % (mgfFile[count], j))
+				else:
+					request = spectrum
+					for r in row_header:
+						request = request[r]
+					request = str(request)
+					request = request.replace(',', '_')
+					identifiers.append(mgfFile + '_' + request)
 				from_mgf.append(mgfFile)
 				try:
 					names.append(mgfFile + '_' + spectrum['params']['name'])
@@ -76,16 +100,18 @@ def read_mgf_binning(mgfFile):
 	return mzs, intensities, identifiers, names, from_mgf, parent_masses
 
 
-def read_mzxml(mzxmlFile):
+def read_mzxml(mzxmlFile, row_header=''):
 	""" reads .mgf files into executable data for these functions
 
 		Args:
 			mzxmlFile: list of (or just one) .mzxml file paths (if more than one, then the data will be combined)
+			row_header: the row headers for the matrix (should be passed in as a list of strings)
+				Ex. ['params', 'scans'] (this is the default)
 
 		Returns:
 			mzs: a list of lists of the m/z ratios
 			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
-			identifiers: a list of the identifiers for each spectra
+			identifiers: a list of the identifiers for each spectra (this is the row headers of the matrix, which corresponds to the input row_header)
 			names: a list of the names of the spectra
 			from_mgf: the mgf file each spectra comes from
 			parent_masses: a list of the parent masses that each spectra correspond to
@@ -102,12 +128,23 @@ def read_mzxml(mzxmlFile):
 				for j,spectrum in enumerate(reader):
 					mzs.append(spectrum['m/z array'].tolist())
 					intensities.append(spectrum['intensity array'].tolist())
-					identifiers.append(mzxml_n + '_scan' + spectrum['params']['scans'])
+					if not row_header:
+						try:
+							identifiers.append(mzxml_n + '_scan' + spectrum['params']['scans'])
+						except KeyError:
+							identifiers.append(mzxml_n + '_' + 'unknown scan (%s spectrum #%s)' % (mzxml_n[count], j))
+					else:
+						request = spectrum
+						for r in row_header:
+							request = request[r]
+						request = str(request)
+						request = request.replace(',', '_')
+						identifiers.append(mzxml_n + '_' + request)
 					from_mgf.append(mzxml_n)
 					try:
 						names.append(mzxml_n + '_' + spectrum['params']['name'])
 					except KeyError:
-						names.append(mzxml_n + '_' + 'unknown spectrum (%s spectrum #%s)' % (mgfFile, j))
+						names.append(mzxml_n + '_' + 'unknown spectrum (%s spectrum #%s)' % (mzxml_n, j))
 					parent_masses.append(spectrum['params']['pepmass'][0])
 			scale(mzs, intensities)
 	else:
@@ -115,12 +152,23 @@ def read_mzxml(mzxmlFile):
 			for j,spectrum in enumerate(reader):
 				mzs.append(spectrum['m/z array'].tolist())
 				intensities.append(spectrum['intensity array'].tolist())
-				identifiers.append(mzxmlFile + '_scan' + spectrum['params']['scans'])
+				if not row_header:
+					try:
+						identifiers.append(mzxmlFile + '_scan' + spectrum['params']['scans'])
+					except KeyError:
+						identifiers.append(mzxmlFile + '_' + 'unknown scan (%s spectrum #%s)' % (mzxmlFile[count], j))
+				else:
+					request = spectrum
+					for r in row_header:
+						request = request[r]
+					request = str(request)
+					request = request.replace(',', '_')
+					identifiers.append(mzxmlFile + '_' + request)
 				from_mgf.append(mzxmlFile)
 				try:
 					names.append(mzxmlFile + '_' + spectrum['params']['name'])
 				except KeyError:
-					names.append(mzxmlFile + '_' + 'unknown spectrum (%s spectrum #%s)' % (mgfFile[count], j))
+					names.append(mzxmlFile + '_' + 'unknown spectrum (%s spectrum #%s)' % (mzxmlFile[count], j))
 				parent_masses.append(spectrum['params']['pepmass'][0])
 		scale(mzs, intensities)
 
@@ -295,6 +343,7 @@ def create_peak_matrix(mzs, intensities, bins, listIfMultMZ=False, minIntens=0, 
 		Args:
 			mzs: a list of lists of the m/z ratios
 			intensities: a list of lists (same size as mzs) of the intensities corresponding to each peak
+			bins: bins to place mz values into (see create_bins())
 			listIfMultMZ: optional - if true, then if there is >1 m/z in a bin, it will create a list in that bin; if false, it will add the intensities together
 			minIntens: optional - minimum intensity threshold level to add to peak matrix (default is 0)
 			maxIntens: optional - maximum intensity threshold level to add to peak matrix (default is 0, which means that there is no max)
@@ -559,120 +608,27 @@ def graph_bins_vs_intens(binned_peaks):
 	plt.show()
 
 
-
-# # for testing
-# def main():
-	# # reads mgf file and initializes lists of m/z ratios and respective intensities
-	# mgf_contents = read_mgf_binning(['./tests/test1.mgf', './tests/test2.mgf', './tests/test3.mgf'])
-	# bins = create_bins(mgf_contents[0], 40)
-	# test = create_peak_matrix(mgf_contents[0], mgf_contents[1], mgf_contents[2], bins, listIfMultMZ=False, minIntens=5, maxIntens=0)
-	# print(compress_bins_sml(test[0]))
-
-	# # reads the mzxml file and initializes lists of m/z ratios and respective intensities
-	# mzxml_contents = read_mzxml('./data/000020661_RG2_01_5517.mzXML')
-	# mzs = mzxml_contents[0]
-	# intensities = mzxml_contents[1]
-	# identifiers = mzxml_contents[2]
-
-	# # adds gaussian noise to the m/z dataset (comment this line if you don't want noise)
-	# mzs = create_gaussian_noise(mzs)
-
-	# # creates bins
-	# mgf_stuff = read_mgf_binning('./data/agp500.mgf')
-	# mzs = mgf_stuff[0]
-	# intensities = mgf_stuff[1]
-	# bins = create_bins(mzs, 0.3)
-	# peak_matrix = create_peak_matrix(mzs, intensities, bins)[0]
-
-	# # creates peaks matrix
-	# peak_matrix = create_peak_matrix(mzs, intensities, identifiers, bins)[0]
-
-	# # pickles the binned data
-	# pkld_bins = open('binned_ms_mzxml.pkl', 'wb')
-	# pickle.dump(peak_matrix, pkld_bins)
-	# pkld_bins.close()
-
-	# # opens the pickled .mgf uncompressed data
-	# pkl_data = open('binned_ms.pkl', 'rb')
-	# binned_peaks = pickle.load(pkl_data)
-	# pkl_data.close()
-
-	# # opens the pickled .mzxml uncompressed data
-	# pkl_data = open('binned_ms_mzxml.pkl', 'rb')
-	# binned_peaks_mzxml = pickle.load(pkl_data)
-	# pkl_data.close()
-
-	# # uncompressed data plots
-	# graph_bins_vs_intens(binned_peaks_mzxml)
-
-	# # compresses binned_peaks by only keeping 95% of explained variance
-	# labels_sml = binned_peaks.pop(0)
-	# compressed_sml = compress_bins_sml(binned_peaks)
-
-	# # compresses binned_peaks with pca; graphs compression
-	# labels = binned_peaks.pop(0)
-	# compressed = compress_bins(binned_peaks)
-
-	# # pickles the compressed data
-	# pkld_bins2 = open('compressed_binned_ms.pkl', 'wb')
-	# pickle.dump(compressed, pkld_bins2)
-	# pkld_bins2.close()
-
-	# # pickles the 95% of variance compressed data
-	# pkld_bins3 = open('compressed_binned_ms_95var.pkl', 'wb')
-	# pickle.dump(compressed_sml, pkld_bins3)
-	# pkld_bins3.close()
-
-	# # opens the pickled compressed data
-	# pkl_data2 = open('compressed_binned_ms.pkl', 'rb')
-	# compressed = pickle.load(pkl_data2)
-	# pkl_data2.close()
-
-	# opens the pickled compressed data (95% of variance)
-	# pkl_data3 = open('compressed_binned_ms_95var.pkl', 'rb')
-	# compressed_sml = pickle.load(pkl_data3)
-	# pkl_data3.close()
-
-	# # graphs of 95% of var compression
-	# graph_loadsxvar_mostvar(compressed_sml[1], compressed_sml[2])
-
-	# # graphs of compressed data
-	# compr = compressed[0]
-	# graph_compression(compr)
-	# components = compressed[1]
-	# graph_components([components[0], components[1], components[2]])
-	# var_ratio = compressed[2]
-	# graph_scree_plot_variance(var_ratio)
-	# graph_loadings_by_variance(components[:27], var_ratio)
-	# print(components)
-	# print(var_ratio)
-	# graphs histogram of m/z data
-	# graph_mzs(mzs, len(bins))
-
 if __name__ == "__main__":
-	# main()
 	parser = argparse.ArgumentParser(description='Various binning functions for mgfs')
 	parser.add_argument('-mgf', '--mgf', nargs='*', type=str, metavar='', help='.mgf filepath')
 	parser.add_argument('-mzxml', '--mzxml', nargs='*', type=str, metavar='', help='.mzxml filepath (do not do .mgf and .mzxml concurrently)')
 	parser.add_argument('-b', '--binsize', type=float, metavar='', help='size of bins for which spectra fall into')
-	parser.add_argument('-rh', '--row_header', type=int, metavar='', help='if 0, then filename_scan# will be used to label each spectra. if 1, then the spectra name will be used')
+	parser.add_argument('-rh', '--row_header', nargs='*', type=str, metavar='', help='a string for which mgf field will be used as the row header. Ex. if "params" "scans" is passed, then scan # will be used. (Default is scan #)')
 	parser.add_argument('-f', '--filename', type=str, metavar='', help='filepath to output data to')
 	args = parser.parse_args()
 
 	data = []
 	if args.mgf:
-		data = read_mgf_binning(args.mgf)
+		data = read_mgf_binning(args.mgf, row_header=args.row_header)
 	else:
-		data = read_mzxml_binning(args.mzxml)
+		data = read_mzxml_binning(args.mzxml, row_header=args.row_header)
 	bins = create_bins(data[0], args.binsize)
 	peaks = create_peak_matrix(data[0], data[1], bins)[0]
 	
 	low_b = [b[0] for b in bins]
 	for i,l in enumerate(low_b):
-		low_b[i] = 'Bin Lower Bound: %s' % str(l)
+		low_b[i] = str(l)
+		low_b[i] = low_b[i].replace(',', '_')
 
-	if not args.row_header == 1:
-		df = pd.DataFrame(data=peaks, columns=low_b, index=data[2])
-	else:
-		df = pd.DataFrame(data=peaks, columns=low_b, index=data[3])
+	df = pd.DataFrame(data=peaks, columns=low_b, index=data[2])
 	df.to_csv(args.filename)
