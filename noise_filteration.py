@@ -86,7 +86,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, binsi
 		logit = True
 		removed, affected, victims = set_min_intens(mzs, intensities, min_intens, names, from_mgf)
 	elif method == 1:
-		logit = True
+		# logit = True
 		if binsize == 0 or peaks_per_bin == 0:
 			raise ValueError('Pass in values for binsize and peaks_per_bin')
 		ctp = greatest_peaks_in_windows(mzs, intensities, binsize, peaks_per_bin, names, identifiers)
