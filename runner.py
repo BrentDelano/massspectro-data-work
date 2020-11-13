@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 
-range = np.arange(0,.75,.05)
+range = np.arange(0,.2,.001)
 mgf_data = "data/nematode_symbionts.mgf"
 temp_mgf = "temp.mgf"
 if os.path.exists(temp_mgf):
@@ -31,7 +31,7 @@ for x in range:
     f.write(str(method) + "," + str(x) + "," + str(size[0]) + "\n")
     f.close()
     os.remove(temp_mgf)
-
+"""
 method = 1
 range = np.arange(1,11,1)
 print()
@@ -50,3 +50,4 @@ for x in range:
     f.write(str(method) + "," + str(x) + "," + str(size) + "\n")
     f.close()
     os.remove(temp_mgf)
+"""
