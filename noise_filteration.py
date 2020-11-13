@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import random
 import sys
 sys.path.insert(1, './jackstraw/jackstraw')
-import jackstraw
+#import jackstraw
 from statsmodels.stats.multitest import multipletests
 
 def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, binsizes=[], removalperc=50, n_components=0.95, peaks_per_bin=0, rank=10, repetitions=10, within=5, row_header='', std=3, mgf_out_filename='', log_out_filename='', csv_out_filename=''):
@@ -144,7 +144,6 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, binsi
 
 	if mgf_out_filename:
 		write_to_mgf(mgf, mzxml, mzs, intensities, mgf_out_filename)
-
 	# if 0 <= method <= 5:
 	# 	avg_removed = removed / num_spectra
 	# 	x = [u'Number of\nRemoved Peaks', u'Average Removed\nPeaks per\nSpectra', u'Original Number\nof Peaks']
