@@ -7,7 +7,7 @@ import sys
 import re
 import nimfa
 
-range = np.arange(0,.75,.05)
+range = np.arange(0,.2,.001)
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
 temp_mgf = "temp.mgf"
 if os.path.exists(temp_mgf):
@@ -16,7 +16,7 @@ method = 0
 bin = 5
 output = "output_measurements.csv"
 f = open(output, "w")
-f.write("Method,Value,Num Rows,Rank,Sparseness,RSS,Evar\n")
+f.write("Method,Value,Num Rows,Rank,Sparseness Basis Vector, Sparseness Coefficient,RSS,Evar\n")
 f.close()
 
 rank_range = np.concatenate(([2,5,10], np.arange(30,70,10)))
@@ -51,10 +51,10 @@ for x in range:
 
     for t in ranks:
         measures = ranks[t]
-        sparseness = measures["sparsness"]
+        sparseness = measures["sparseness"]
         rss = measures["rss"]
         evar = measures["evar"]
-        f.write(str(method) + "," + str(round(x, 4)) + "," + str(size[0]) + str(t) + "," + str(sparseness) + "," + str(rss) + "," + str(evar) + "\n")
+        f.write(str(method) + "," + str(round(x, 4)) + "," + str(size[0])+ "," + str(t) + "," + str(sparseness) + "," + str(rss) + "," + str(evar) + "\n")
 
     f.close()
     os.remove(temp_mgf)
