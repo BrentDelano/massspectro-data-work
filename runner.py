@@ -20,7 +20,7 @@ f.write("Method,Min Intensity,Num Rows,Rank,Sparseness Basis Vector, Sparseness 
 f.close()
 
 rank_range = np.concatenate(([2,5,10], np.arange(30,70,10)))
-output_params = ["sparseness", "rss", "evar"]
+output_params = ["sparseness", "rss", "evar", "cophenetic"]
 for x in range:
     noise_filteration.noise_filteration(mgf=[mgf_data], method=method, min_intens=x, mgf_out_filename=temp_mgf)
     data = binning_ms.read_mgf_binning(temp_mgf) 
