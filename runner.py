@@ -84,8 +84,8 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
 range = np.concatenate(([0], np.arange(0.091,.2,.001)))
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
 temp_mgf = "temp.mgf"
-# if os.path.exists(temp_mgf):
-#     os.remove(temp_mgf)
+if os.path.exists(temp_mgf):
+    os.remove(temp_mgf)
 
 motif_path = sys.path[0] + "/MS2LDA_motifs"
 all_files = glob.glob(os.path.join(motif_path, "*.csv")) #Makes an array with all the motif filenames
@@ -96,7 +96,7 @@ for file in all_files:
     temp_df.index.name = "Motif " + re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs.append(temp_df)
 
-# noise_filteration.noise_filteration(mgf=[mgf_data], method=0, min_intens=0.015, mgf_out_filename=temp_mgf)
+noise_filteration.noise_filteration(mgf=[mgf_data], method=0, min_intens=0.015, mgf_out_filename=temp_mgf)
 data = binning_ms.read_mgf_binning(temp_mgf) 
 new_bins = binning_ms.create_bins(data[0], 5)
 new_peaks = binning_ms.create_peak_matrix(data[0], data[1], new_bins)[0]
