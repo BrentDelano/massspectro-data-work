@@ -83,7 +83,7 @@ def noise_filteration(mgf='', mzxml='', method=1, min_intens=0, binsize=0, binsi
 	compressed = []
 	near = []
 	if method == 0:
-		logit = True
+		#logit = True
 		removed, affected, victims = set_min_intens(mzs, intensities, min_intens, names, from_mgf)
 	elif method == 1:
 		# logit = True
