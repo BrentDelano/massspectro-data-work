@@ -17,8 +17,8 @@ fig = None
 # output_pdf = None
 # output_filename = "plot"
 
-if output_filename != None:
-        output_pdf = PdfPages(output_filename + "." + filetype) # Creates object used to write plots to a pdf file
+#if output_filename != None:
+#        output_pdf = PdfPages(output_filename + "." + filetype) # Creates object used to write plots to a pdf file
 
 # Key listener function used to close all plt windows on escape
 def close_windows(event):
@@ -84,8 +84,8 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
 range = np.concatenate(([0], np.arange(0.091,.2,.001)))
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
 temp_mgf = "temp.mgf"
-if os.path.exists(temp_mgf):
-    os.remove(temp_mgf)
+#if os.path.exists(temp_mgf):
+#    os.remove(temp_mgf)
 
 motif_path = sys.path[0] + "/MS2LDA_motifs"
 all_files = glob.glob(os.path.join(motif_path, "*.csv")) #Makes an array with all the motif filenames
@@ -99,7 +99,7 @@ for file in all_files:
 
 bin_size = 0.005
 
-noise_filteration.noise_filteration(mgf=[mgf_data], method=0, min_intens=0.015, mgf_out_filename=temp_mgf)
+#noise_filteration.noise_filteration(mgf=[mgf_data], method=0, min_intens=0.015, mgf_out_filename=temp_mgf)
 data = binning_ms.read_mgf_binning(temp_mgf) 
 new_bins = binning_ms.create_bins(data[0], bin_size)
 new_peaks = binning_ms.create_peak_matrix(data[0], data[1], new_bins)[0]
@@ -123,6 +123,7 @@ data = np.transpose(input_data.values)
 nmf_model = nimfa.Nmf(data, rank=30)
 basis = nmf_model().basis()
 basis = np.transpose(basis) #makes the basis vectors rows not columns
+#np.savetxt("basis.csv", np.asarray(basis), delimiter=",")
 euc_distances = []
 
 # print(motif_dfs)
@@ -131,7 +132,8 @@ for vector in basis:
     basis_distances = []
     for motif in motif_dfs:
         motif_vector = motif.get("Probability").to_numpy()
-        distance = np.linalg.norm(vector-motif_vector)
+        motif_padded = np.pad(motif_vector, (0, np.shape(basis)[1]-motif_vector.size))
+        distance = np.linalg.norm(vector-motif_padded)
         basis_distances.append(distance)
     euc_distances.append(basis_distances)
 
