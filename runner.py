@@ -7,15 +7,15 @@ import sys
 import re
 import nimfa
 import glob
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib.patches as mpatches
+# import matplotlib.pyplot as plt
+# from matplotlib.backends.backend_pdf import PdfPages
+# import matplotlib.patches as mpatches
 
 filetype = "pdf" # "png" or "pdf"
 figdpi = 72 #int: DPI of the PDF output file
 fig = None
-output_pdf = None
-output_filename = "plot"
+# output_pdf = None
+# output_filename = "plot"
 
 if output_filename != None:
         output_pdf = PdfPages(output_filename + "." + filetype) # Creates object used to write plots to a pdf file
@@ -93,12 +93,15 @@ motif_dfs = []
 
 for file in all_files:
     temp_df = pd.read_csv(file)
+    temp_df = temp_df[~temp_df['Feature'].str.contains("loss")] #Removes all rows containing the string "loss"
     temp_df.index.name = "Motif " + re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs.append(temp_df)
 
+bin_size = 0.005
+
 noise_filteration.noise_filteration(mgf=[mgf_data], method=0, min_intens=0.015, mgf_out_filename=temp_mgf)
 data = binning_ms.read_mgf_binning(temp_mgf) 
-new_bins = binning_ms.create_bins(data[0], 5)
+new_bins = binning_ms.create_bins(data[0], bin_size)
 new_peaks = binning_ms.create_peak_matrix(data[0], data[1], new_bins)[0]
 low_b = [q[0] for q in new_bins]
 for v,c in enumerate(low_b):
@@ -128,14 +131,15 @@ for vector in basis:
     basis_distances = []
     for motif in motif_dfs:
         motif_vector = motif.get("Probability").to_numpy()
-        motif_padded = np.pad(motif_vector, (0, np.shape(basis)[1]-motif_vector.size)) #fills the end of the vector with 0s
-        distance = np.linalg.norm(vector-motif_padded)
+        distance = np.linalg.norm(vector-motif_vector)
         basis_distances.append(distance)
     euc_distances.append(basis_distances)
 
+np.savetxt("distances.csv", np.asarray(euc_distances), delimiter=",")
+
 # print(euc_distances)
 # print(np.shape(euc_distances))
-
+'''
 k = 5 #number of min values to collect
 idx = np.argpartition(euc_distances, k, axis=None)[:k]
 row_size = np.shape(euc_distances)[1]
@@ -163,7 +167,6 @@ for v in final_basis:
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
 for m in final_motifs:
-    m = np.pad(m, (0, np.shape(basis)[1]-m.size)) #fills the end of the vector with 0s
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, m, color="green")
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
@@ -181,7 +184,7 @@ if output_filename != None:
 plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
 
 plt.show()
-
+'''
 """
 method = 0
 bin = 5
