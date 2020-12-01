@@ -8,7 +8,7 @@ import re
 import nimfa
 import glob
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg') #for plotting w/out GUI - for use on server
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
@@ -121,7 +121,7 @@ bin_lower_bounds = []
 for column in input_data.columns:
     bound = re.findall(r"[-+]?\d*\.\d+|\d+", column) # Parses the float bound from the column header
     bin_lower_bounds.append(float(bound[0]))
-
+'''
 # Convert to np array and transpose it so that the bin numbers are the rows and it's vectors of spectra intensity
 data = np.transpose(input_data.values)
 nmf_model = nimfa.Nmf(data, rank=30)
@@ -163,24 +163,25 @@ for x in idx:
     f.write(motif_dfs[motif_index].index.name + "\n")
 
 f.close()
-
+'''
 # print(np.shape(final_basis))
 # print(np.shape(final_motifs))
 
 ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
-
+'''
 for v in final_basis:
     v = np.asarray(v)
     v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
-    # ax.plot(bin_lower_bounds, v, color="blue")
-    ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
-
-for m in final_motifs:
+    ax.plot(bin_lower_bounds, v, color="blue")
+    # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
+'''
+for m in motif_dfs:
+    m = m.get("Probability").to_numpy()
     m = np.pad(m, (0, np.shape(basis)[1]-m.size)) #fills the end of the vector with 0s
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    # ax.plot(bin_lower_bounds, m, color="green")
-    ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+    ax.plot(bin_lower_bounds, m, color="green")
+    # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
 motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
