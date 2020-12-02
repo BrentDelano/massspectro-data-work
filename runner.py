@@ -12,6 +12,8 @@ matplotlib.use('Agg') #for plotting w/out GUI - for use on server
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
+import time
+start = time.time()
 
 filetype = "pdf" # "png" or "pdf"
 figdpi = 72 #int: DPI of the PDF output file
@@ -93,12 +95,19 @@ motif_path = sys.path[0] + "/MS2LDA_motifs"
 all_files = glob.glob(os.path.join(motif_path, "*.csv")) #Makes an array with all the motif filenames
 motif_dfs = []
 
+start = time.time()
 for file in all_files:
+    all_bins = np.arange(94.025, 1372.04, 0.005)
     temp_df = pd.read_csv(file)
     temp_df = temp_df[~temp_df['Feature'].str.contains("loss")] #Removes all rows containing the string "loss"
+    temp_df['Feature'] = pd.to_numeric(temp_df["Feature"].astype(str).str[9:], errors="coerce") #removes the word "fragment_" from the df columns
+    all_bins = np.delete(all_bins, np.where(np.isin(all_bins, temp_df["Feature"].values)))
+    for bin in all_bins:
+        temp_df.append({"Feature": bin, "Probability": 0}, ignore_index=True)
+    temp_df.sort_values("Feature")
     temp_df.index.name = "Motif " + re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs.append(temp_df)
-
+print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
 
 bin_size = 0.005
 '''
@@ -112,7 +121,9 @@ for v,c in enumerate(low_b):
     low_b[v] = low_b[v].replace(',', '_')
 output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 '''
+start = time.time()
 output_df = pd.read_csv("binned_data.csv")
+print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
 #Post filtration process
 input_data = output_df.drop(output_df.columns[0], axis=1) #Trims the data so the first column isn't included
 
@@ -176,12 +187,15 @@ for v in final_basis:
     ax.plot(bin_lower_bounds, v, color="blue")
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 '''
+print(np.shape(bin_lower_bounds))
+start = time.time()
 for m in motif_dfs:
+    print(np.shape(m))
     m = m.get("Probability").to_numpy()
-    m = np.pad(m, (0, np.shape(basis)[1]-m.size)) #fills the end of the vector with 0s
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, m, color="green")
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
 motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
