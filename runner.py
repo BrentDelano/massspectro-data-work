@@ -97,14 +97,15 @@ motif_dfs = []
 
 start = time.time()
 for file in all_files:
-    all_bins = np.arange(94.025, 1372.04, 0.005)
+    all_bins = np.arange(94.0225, 1372.04, 0.005)
     temp_df = pd.read_csv(file)
     temp_df = temp_df[~temp_df['Feature'].str.contains("loss")] #Removes all rows containing the string "loss"
     temp_df['Feature'] = pd.to_numeric(temp_df["Feature"].astype(str).str[9:], errors="coerce") #removes the word "fragment_" from the df columns
-    all_bins = np.delete(all_bins, np.where(np.isin(all_bins, temp_df["Feature"].values)))
+    for value in temp_df['Feature'].values:
+        all_bins = np.delete(all_bins, np.where(abs(all_bins-value) < 0.0000001)) #Removes all the bins already in the motif from the all_bins list
     for bin in all_bins:
-        temp_df.append({"Feature": bin, "Probability": 0}, ignore_index=True)
-    temp_df.sort_values("Feature")
+        temp_df = temp_df.append({"Feature": bin, "Probability": 0}, ignore_index=True) # adds zeros for all the bins that weren't in the motif
+    temp_df = temp_df.sort_values("Feature") #sorts for post processing purposes
     temp_df.index.name = "Motif " + re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs.append(temp_df)
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
@@ -193,8 +194,8 @@ for m in motif_dfs:
     print(np.shape(m))
     m = m.get("Probability").to_numpy()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    ax.plot(bin_lower_bounds, m, color="green")
-    # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+    # ax.plot(bin_lower_bounds, m, color="green")
+    ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
