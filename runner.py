@@ -133,15 +133,18 @@ bin_lower_bounds = []
 for column in input_data.columns:
     bound = re.findall(r"[-+]?\d*\.\d+|\d+", column) # Parses the float bound from the column header
     bin_lower_bounds.append(float(bound[0]))
-'''
+
+start = time.time()
 # Convert to np array and transpose it so that the bin numbers are the rows and it's vectors of spectra intensity
 data = np.transpose(input_data.values)
 nmf_model = nimfa.Nmf(data, rank=30)
 basis = nmf_model().basis()
 basis = np.transpose(basis) #makes the basis vectors rows not columns
+print('It took {0:0.1f} seconds to do NMF processes'.format(time.time() - start))
 #np.savetxt("basis.csv", np.asarray(basis), delimiter=",")
 euc_distances = []
 
+start = time.time()
 # print(motif_dfs)
 for vector in basis:
     # print(vector)
@@ -152,11 +155,11 @@ for vector in basis:
         distance = np.linalg.norm(vector-motif_padded)
         basis_distances.append(distance)
     euc_distances.append(basis_distances)
-
+print('It took {0:0.1f} seconds to calculate distance matrix'.format(time.time() - start))
 
 # print(euc_distances)
 # print(np.shape(euc_distances))
-
+start = time.time()
 k = 5 #number of min values to collect
 idx = np.argpartition(euc_distances, k, axis=None)[:k]
 row_size = np.shape(euc_distances)[1]
@@ -175,27 +178,28 @@ for x in idx:
     f.write(motif_dfs[motif_index].index.name + "\n")
 
 f.close()
-'''
+print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(time.time() - start))
+
 # print(np.shape(final_basis))
 # print(np.shape(final_motifs))
 
 ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
-'''
+
+start = time.time()
 for v in final_basis:
     v = np.asarray(v)
     v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, v, color="blue")
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
-'''
-print(np.shape(bin_lower_bounds))
-start = time.time()
-for m in motif_dfs:
-    print(np.shape(m))
+
+# print(np.shape(bin_lower_bounds))
+for m in final_motifs:
+    # print(np.shape(m))
     m = m.get("Probability").to_numpy()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    # ax.plot(bin_lower_bounds, m, color="green")
-    ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+    ax.plot(bin_lower_bounds, m, color="green")
+    # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
