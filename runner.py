@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 import time
+import scipy
+from scipy import sparse
 start = time.time()
 
 filetype = "pdf" # "png" or "pdf"
@@ -91,25 +93,6 @@ temp_mgf = "temp.mgf"
 #if os.path.exists(temp_mgf):
 #    os.remove(temp_mgf)
 
-motif_path = sys.path[0] + "/MS2LDA_motifs"
-all_files = glob.glob(os.path.join(motif_path, "*.csv")) #Makes an array with all the motif filenames
-motif_dfs = []
-
-start = time.time()
-for file in all_files:
-    all_bins = np.arange(94.0225, 1372.04, 0.005)
-    temp_df = pd.read_csv(file)
-    temp_df = temp_df[~temp_df['Feature'].str.contains("loss")] #Removes all rows containing the string "loss"
-    temp_df['Feature'] = pd.to_numeric(temp_df["Feature"].astype(str).str[9:], errors="coerce") #removes the word "fragment_" from the df columns
-    for value in temp_df['Feature'].values:
-        all_bins = np.delete(all_bins, np.where(abs(all_bins-value) < 0.0000001)) #Removes all the bins already in the motif from the all_bins list
-    for bin in all_bins:
-        temp_df = temp_df.append({"Feature": bin, "Probability": 0}, ignore_index=True) # adds zeros for all the bins that weren't in the motif
-    temp_df = temp_df.sort_values("Feature") #sorts for post processing purposes
-    temp_df.index.name = "Motif " + re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
-    motif_dfs.append(temp_df)
-print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
-
 bin_size = 0.005
 '''
 #noise_filteration.noise_filteration(mgf=[mgf_data], method=0, min_intens=0.015, mgf_out_filename=temp_mgf)
@@ -134,25 +117,43 @@ for column in input_data.columns:
     bound = re.findall(r"[-+]?\d*\.\d+|\d+", column) # Parses the float bound from the column header
     bin_lower_bounds.append(float(bound[0]))
 
+# .T below transposes it so that the bin numbers are the rows and it's vectors of spectra intensity
+input_data = input_data.T.astype(pd.SparseDtype("float", np.nan)) #converts to a Sparse DF
+CSR_data = input_data.sparse.to_coo().tocsr()
+
 start = time.time()
-# Convert to np array and transpose it so that the bin numbers are the rows and it's vectors of spectra intensity
-data = np.transpose(input_data.values)
-nmf_model = nimfa.Nmf(data, rank=30)
+nmf_model = nimfa.Nmf(CSR_data, rank=30)
 basis = nmf_model().basis()
-basis = np.transpose(basis) #makes the basis vectors rows not columns
 print('It took {0:0.1f} seconds to do NMF processes'.format(time.time() - start))
-#np.savetxt("basis.csv", np.asarray(basis), delimiter=",")
+
+motif_path = sys.path[0] + "/MS2LDA_motifs"
+all_files = glob.glob(os.path.join(motif_path, "*.csv")) #Makes an array with all the motif filenames
+motif_dfs = [None]*len(all_files) #empty list that is the length of # of motifs
+
+#comparision values
+min_csv_value = bin_lower_bounds[0]
+csv_size = len(bin_lower_bounds)
+csv_bin_size = (bin_lower_bounds[csv_size-1]-min_csv_value)/csv_size
+
+start = time.time()
+for file in all_files:
+    temp_df = pd.read_csv(file)
+    temp_df = temp_df[~temp_df['Feature'].str.contains("loss")] #Removes all rows containing the string "loss"
+    temp_df['Feature'] = pd.to_numeric(temp_df["Feature"].astype(str).str[9:], errors="coerce") #removes the word "fragment_" from the df columns
+    data = temp_df['Probability'].values
+    row_values = np.floor((temp_df['Feature'] - bin_lower_bounds[0])/csv_bin_size)
+    motif_vector = scipy.sparse.coo_matrix((data, (row_values, np.zeros(len(row_values)))), shape=(csv_size,1)).tocsr() #creates a sparse matrix in CSR format of the motif
+    motif_num = re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
+    motif_dfs[int(motif_num)] # since the files were processed randomly, this puts it in the correct spot in the list
+print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
+'''
 euc_distances = []
 
 start = time.time()
-# print(motif_dfs)
 for vector in basis:
-    # print(vector)
     basis_distances = []
     for motif in motif_dfs:
-        motif_vector = motif.get("Probability").to_numpy()
-        motif_padded = np.pad(motif_vector, (0, np.shape(basis)[1]-motif_vector.size))
-        distance = np.linalg.norm(vector-motif_padded)
+        distance = np.linalg.norm(vector-motif)
         basis_distances.append(distance)
     euc_distances.append(basis_distances)
 print('It took {0:0.1f} seconds to calculate distance matrix'.format(time.time() - start))
@@ -173,18 +174,18 @@ for x in idx:
     basis_index = int(x/row_size)
     motif_index = x%row_size
     final_basis.append(basis[basis_index])
-    final_motifs.append(np.transpose(motif_dfs[motif_index].get("Probability").to_numpy()))
+    final_motifs.append(motif_dfs[motif_index])
 
-    f.write(motif_dfs[motif_index].index.name + "\n")
+    f.write("Motif " + str(motif_index) + "\n")
 
 f.close()
 print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(time.time() - start))
-
+'''
 # print(np.shape(final_basis))
 # print(np.shape(final_motifs))
 
 ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
-
+'''
 start = time.time()
 for v in final_basis:
     v = np.asarray(v)
@@ -192,14 +193,13 @@ for v in final_basis:
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, v, color="blue")
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
-
-# print(np.shape(bin_lower_bounds))
-for m in final_motifs:
-    # print(np.shape(m))
-    m = m.get("Probability").to_numpy()
+'''
+print(np.shape(bin_lower_bounds))
+for m in motif_dfs:
+    m = m.toarray()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    ax.plot(bin_lower_bounds, m, color="green")
-    # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+    # ax.plot(bin_lower_bounds, m, color="green")
+    ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
