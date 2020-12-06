@@ -144,7 +144,7 @@ for file in all_files:
     row_values = np.floor((temp_df['Feature'] - bin_lower_bounds[0])/csv_bin_size)
     motif_vector = scipy.sparse.coo_matrix((data, (row_values, np.zeros(len(row_values)))), shape=(csv_size,1)).tocsr() #creates a sparse matrix in CSR format of the motif
     motif_num = re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
-    motif_dfs[int(motif_num)] # since the files were processed randomly, this puts it in the correct spot in the list
+    motif_dfs[int(motif_num)-1] # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
 '''
 euc_distances = []
@@ -176,7 +176,7 @@ for x in idx:
     final_basis.append(basis[basis_index])
     final_motifs.append(motif_dfs[motif_index])
 
-    f.write("Motif " + str(motif_index) + "\n")
+    f.write("Motif " + str(motif_index+1) + "\n")
 
 f.close()
 print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(time.time() - start))
@@ -185,8 +185,9 @@ print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(tim
 # print(np.shape(final_motifs))
 
 ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
-'''
+
 start = time.time()
+'''
 for v in final_basis:
     v = np.asarray(v)
     v = v[0]
@@ -194,6 +195,7 @@ for v in final_basis:
     ax.plot(bin_lower_bounds, v, color="blue")
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 '''
+
 print(np.shape(bin_lower_bounds))
 for m in motif_dfs:
     m = m.toarray()
