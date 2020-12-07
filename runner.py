@@ -150,14 +150,12 @@ for file in all_files:
     motif_dfs[int(motif_num)-1] = motif_vector # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
 
-euc_distances = []
-
 start = time.time()
 for vector in basis:
     vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
     basis_distances = []
     for motif in motif_dfs:
-        distance = np.linalg.norm(vector-motif)
+        distance = scipy.sparse.linalg.norm(vector-motif)
         basis_distances.append(distance)
     euc_distances.append(basis_distances)
 print('It took {0:0.1f} seconds to calculate distance matrix'.format(time.time() - start))
@@ -198,7 +196,6 @@ for v in final_basis:
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, v, color="blue")
-    print()
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
 
