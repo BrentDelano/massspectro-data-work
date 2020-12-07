@@ -144,7 +144,7 @@ for file in all_files:
     row_values = np.floor((temp_df['Feature'] - bin_lower_bounds[0])/csv_bin_size)
     motif_vector = scipy.sparse.coo_matrix((data, (row_values, np.zeros(len(row_values)))), shape=(csv_size,1)).tocsr() #creates a sparse matrix in CSR format of the motif
     motif_num = re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
-    motif_dfs[int(motif_num)-1] # since the files were processed randomly, this puts it in the correct spot in the list
+    motif_dfs[int(motif_num)-1] = motif_vector # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
 '''
 euc_distances = []
