@@ -108,6 +108,8 @@ output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 start = time.time()
 output_df = pd.read_csv("binned_data.csv")
 print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
+
+start = time.time()
 #Post filtration process
 input_data = output_df.drop(output_df.columns[0], axis=1) #Trims the data so the first column isn't included
 
@@ -120,10 +122,11 @@ for column in input_data.columns:
 # .T below transposes it so that the bin numbers are the rows and it's vectors of spectra intensity
 input_data = input_data.T.astype(pd.SparseDtype("float", np.nan)) #converts to a Sparse DF
 CSR_data = input_data.sparse.to_coo().tocsr()
+print('It took {0:0.1f} seconds to post-process csv'.format(time.time() - start))
 
 start = time.time()
 nmf_model = nimfa.Nmf(CSR_data, rank=30)
-basis = nmf_model().basis()
+basis = nmf_model().basis().transpose() #Transpose so that the basis vectors are rows - simpler to loop through
 print('It took {0:0.1f} seconds to do NMF processes'.format(time.time() - start))
 
 motif_path = sys.path[0] + "/MS2LDA_motifs"
@@ -151,6 +154,7 @@ euc_distances = []
 
 start = time.time()
 for vector in basis:
+    vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
     basis_distances = []
     for motif in motif_dfs:
         distance = np.linalg.norm(vector-motif)
@@ -158,8 +162,8 @@ for vector in basis:
     euc_distances.append(basis_distances)
 print('It took {0:0.1f} seconds to calculate distance matrix'.format(time.time() - start))
 
-# print(euc_distances)
-# print(np.shape(euc_distances))
+print(euc_distances)
+print(np.shape(euc_distances))
 start = time.time()
 k = 5 #number of min values to collect
 idx = np.argpartition(euc_distances, k, axis=None)[:k]
@@ -189,9 +193,7 @@ ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds 
 start = time.time()
 
 for v in final_basis:
-    print(v)
     v = v.toarray()
-    print(v)
     # v = np.asarray(v)
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
@@ -201,7 +203,9 @@ for v in final_basis:
 
 
 print(np.shape(bin_lower_bounds))
-for m in motif_dfs:
+print(final_basis[0])
+print(final_motifs[0])
+for m in final_motifs:
     m = m.toarray()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, m, color="green")
