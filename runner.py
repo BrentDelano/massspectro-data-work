@@ -193,7 +193,7 @@ ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds 
 start = time.time()
 
 for v in final_basis:
-    v = v.tranpose().toarray()
+    v = v.transpose().toarray()
     # v = np.asarray(v)
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
