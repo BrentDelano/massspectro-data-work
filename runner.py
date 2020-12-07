@@ -146,7 +146,7 @@ for file in all_files:
     motif_num = re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs[int(motif_num)-1] = motif_vector # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
-'''
+
 euc_distances = []
 
 start = time.time()
@@ -180,28 +180,32 @@ for x in idx:
 
 f.close()
 print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(time.time() - start))
-'''
+
 # print(np.shape(final_basis))
 # print(np.shape(final_motifs))
 
 ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
 
 start = time.time()
-'''
+
 for v in final_basis:
-    v = np.asarray(v)
-    v = v[0]
+    print(v)
+    v = v.toarray()
+    print(v)
+    # v = np.asarray(v)
+    # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, v, color="blue")
+    print()
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
-'''
+
 
 print(np.shape(bin_lower_bounds))
 for m in motif_dfs:
     m = m.toarray()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    # ax.plot(bin_lower_bounds, m, color="green")
-    ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+    ax.plot(bin_lower_bounds, m, color="green")
+    # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
