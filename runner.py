@@ -150,6 +150,8 @@ for file in all_files:
     motif_dfs[int(motif_num)-1] = motif_vector # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
 
+euc_distances = []
+
 start = time.time()
 for vector in basis:
     vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
