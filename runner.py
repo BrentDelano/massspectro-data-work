@@ -193,17 +193,13 @@ ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds 
 start = time.time()
 
 for v in final_basis:
-    v = v.toarray()
+    v = v.tranpose().toarray()
     # v = np.asarray(v)
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     ax.plot(bin_lower_bounds, v, color="blue")
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
-
-print(np.shape(bin_lower_bounds))
-print(final_basis[0])
-print(final_motifs[0])
 for m in final_motifs:
     m = m.toarray()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
