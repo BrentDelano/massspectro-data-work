@@ -15,6 +15,7 @@ import matplotlib.patches as mpatches
 import time
 import scipy
 from scipy import sparse
+import seaborn as sns
 start = time.time()
 
 filetype = "pdf" # "png" or "pdf"
@@ -87,6 +88,7 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
 
     #Object used for plotting
     return ax
+    
 range = np.concatenate(([0], np.arange(0.091,.2,.001)))
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
 temp_mgf = "temp.mgf"
@@ -177,6 +179,9 @@ for x in idx:
     # Therefore, below you need to divide+truncate and mod to get the i,j index for the original matrix
     basis_index = int(x/row_size)
     motif_index = x%row_size
+    print(basis_index)
+    print(motif_index)
+    print()
     final_basis.append(basis[basis_index])
     final_motifs.append(motif_dfs[motif_index])
 
@@ -197,13 +202,15 @@ for v in final_basis:
     # v = np.asarray(v)
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
-    ax.plot(bin_lower_bounds, v, color="blue")
+    # ax.plot(bin_lower_bounds, v, color="blue")
+    sns.barplot(x="Bins", y="Intensity", data=[bin_lower_bounds, v], color="blue")
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
 for m in final_motifs:
     m = m.toarray()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    ax.plot(bin_lower_bounds, m, color="green")
+    # ax.plot(bin_lower_bounds, m, color="green")
+    sns.barplot(x="Bins", y="Intensity", data=[bin_lower_bounds, m], color="green")
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
