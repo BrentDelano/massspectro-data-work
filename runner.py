@@ -170,6 +170,8 @@ start = time.time()
 k = 5 #number of min values to collect
 idx = np.argpartition(euc_distances, k, axis=None)[:k]
 row_size = np.shape(euc_distances)[1]
+final_basis_indices = []
+final_motif_indices = []
 final_basis = []
 final_motifs = []
 
@@ -179,11 +181,13 @@ for x in idx:
     # Therefore, below you need to divide+truncate and mod to get the i,j index for the original matrix
     basis_index = int(x/row_size)
     motif_index = x%row_size
-    print(basis_index)
-    print(motif_index)
-    print()
-    final_basis.append(basis[basis_index])
-    final_motifs.append(motif_dfs[motif_index])
+    if(basis_index in final_basis_indices):
+        final_basis.append(basis[basis_index])
+        final_basis_indices.append(basis_index)
+    
+    if(motif_index in final_motif_indices):
+        final_motifs.append(motif_dfs[motif_index])
+        final_motif_indices.append(motif_index)
 
     f.write("Motif " + str(motif_index+1) + "\n")
 
@@ -203,14 +207,14 @@ for v in final_basis:
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     # ax.plot(bin_lower_bounds, v, color="blue")
-    sns.barplot(x="Bins", y="Intensity", data=[bin_lower_bounds, v], color="blue")
+    sns.barplot(x=bin_lower_bounds, y=v, color="blue", ax = ax)
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
 for m in final_motifs:
     m = m.toarray()
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
     # ax.plot(bin_lower_bounds, m, color="green")
-    sns.barplot(x="Bins", y="Intensity", data=[bin_lower_bounds, m], color="green")
+    sns.barplot(x=bin_lower_bounds, y=m, color="green", ax = ax)
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
