@@ -108,8 +108,8 @@ for v,c in enumerate(low_b):
 output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 '''
 start = time.time()
-# output_df = pd.read_csv("binned_data.csv")
-output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
+output_df = pd.read_csv("binned_data.csv")
+# output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
 print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
 
 start = time.time()
@@ -209,16 +209,16 @@ for v in final_basis:
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     # print(v)
     # ax.plot(bin_lower_bounds, v, color="blue")
-    # sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
-    ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
+    sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
+    # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
 for m in final_motifs:
     m = m.transpose().toarray()[0]
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
     # print(m)
     # ax.plot(bin_lower_bounds, m, color="green")
-    # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
-    ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+    sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
+    # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
