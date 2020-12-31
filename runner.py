@@ -108,8 +108,8 @@ for v,c in enumerate(low_b):
 output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 '''
 start = time.time()
-# output_df = pd.read_csv("binned_data.csv")
-output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
+output_df = pd.read_csv("binned_data.csv")
+# output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
 print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
 
 start = time.time()
