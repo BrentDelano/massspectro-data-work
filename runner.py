@@ -108,8 +108,8 @@ for v,c in enumerate(low_b):
 output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 '''
 start = time.time()
-output_df = pd.read_csv("binned_data.csv")
-# output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
+# output_df = pd.read_csv("binned_data.csv")
+output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
 print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
 
 start = time.time()
@@ -198,42 +198,62 @@ print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(tim
 # print(np.shape(final_basis))
 # print(np.shape(final_motifs))
 
-ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
+# ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
 
 start = time.time()
 
+final_arrays = []
+final_col_headers = []
+
+count = 1
 for v in final_basis:
     v = v.toarray()[0]
     # v = np.asarray(v)
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
+    final_arrays.append(v)
+    final_col_headers.append("Basis " + str(count))
+    count += 1
     # print(v)
     # ax.plot(bin_lower_bounds, v, color="blue")
-    sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
+    # sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
+count = 0
 for m in final_motifs:
     m = m.transpose().toarray()[0]
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
+
+    final_arrays.append(m)
+    final_col_headers.append("Motif " + str(final_motif_indices[count]))
+    count += 1
     # print(m)
     # ax.plot(bin_lower_bounds, m, color="green")
-    sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
+    # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
-print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
+# print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
-basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
-motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
+final_df = pd.DataFrame(final_arrays, columns = final_col_headers)
 
-plt.legend(handles=[basis_patch, motif_patch])
+final_df = final_df.astype(pd.SparseDtype("float", np.nan))
 
-savePlot()
+final_df.to_csv("final_vectors.csv")
 
-if output_filename != None:
-    output_pdf.close()
+
+
+# basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
+# motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
+
+# plt.legend(handles=[basis_patch, motif_patch])
+
+# savePlot()
+
+# if output_filename != None:
+#     output_pdf.close()
     
-plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
+# plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
 
-plt.show()
+# plt.show()
 
 """
 method = 0
