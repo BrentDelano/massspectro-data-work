@@ -152,7 +152,6 @@ for file in all_files:
     motif_num = re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs[int(motif_num)-1] = motif_vector # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
-
 euc_distances = []
 
 start = time.time()
@@ -202,9 +201,8 @@ print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(tim
 
 start = time.time()
 
-final_arrays = []
-final_col_headers = []
-
+final_arrays = [bin_lower_bounds]
+final_col_headers = ["Intensity Bins"]
 count = 1
 for v in final_basis:
     v = v.toarray()[0]
@@ -223,18 +221,17 @@ count = 0
 for m in final_motifs:
     m = m.transpose().toarray()[0]
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-
     final_arrays.append(m)
-    final_col_headers.append("Motif " + str(final_motif_indices[count]))
+    final_col_headers.append("Motif " + str(final_motif_indices[count]+1))
     count += 1
     # print(m)
     # ax.plot(bin_lower_bounds, m, color="green")
     # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
+
 # print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
-final_df = pd.DataFrame(final_arrays, columns = final_col_headers)
-
+final_df = pd.DataFrame(final_arrays, final_col_headers).T
 final_df = final_df.astype(pd.SparseDtype("float", np.nan))
 
 final_df.to_csv("final_vectors.csv")
