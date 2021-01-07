@@ -14,7 +14,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 import time
 import scipy
+import sklearn
 from scipy import sparse
+from scipy import io
 import seaborn as sns
 start = time.time()
 
@@ -156,16 +158,18 @@ euc_distances = []
 
 start = time.time()
 for vector in basis:
-    vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
+    # vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
     basis_distances = []
     for motif in motif_dfs:
-        distance = scipy.sparse.linalg.norm(vector-motif)
-        basis_distances.append(distance)
+        dot = np.dot(vector, motif)
+        magnitude = scipy.sparse.linalg.norm(vector) * scipy.sparse.linalg.norm(motif)
+        distance = dot/magnitude #Manually compute cosine distance between vectors since libraries have certain nuances
+        basis_distances.append(distance.todense()[0,0])
     euc_distances.append(basis_distances)
 print('It took {0:0.1f} seconds to calculate distance matrix'.format(time.time() - start))
 
 # print(euc_distances)
-# print(np.shape(euc_distances))
+print(np.shape(euc_distances))
 start = time.time()
 k = 5 #number of min values to collect
 idx = np.argpartition(euc_distances, k, axis=None)[:k]
@@ -181,13 +185,13 @@ for x in idx:
     # Therefore, below you need to divide+truncate and mod to get the i,j index for the original matrix
     basis_index = int(x/row_size)
     motif_index = x%row_size
-    if(basis_index not in final_basis_indices):
-        final_basis.append(basis[basis_index])
-        final_basis_indices.append(basis_index)
+    # if(basis_index not in final_basis_indices):
+    final_basis.append(basis[basis_index])
+    final_basis_indices.append(basis_index)
     
-    if(motif_index not in final_motif_indices):
-        final_motifs.append(motif_dfs[motif_index])
-        final_motif_indices.append(motif_index)
+    # if(motif_index not in final_motif_indices):
+    final_motifs.append(motif_dfs[motif_index])
+    final_motif_indices.append(motif_index)
 
     f.write("Motif " + str(motif_index+1) + "\n")
 
@@ -210,8 +214,8 @@ for v in final_basis:
     # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     final_arrays.append(v)
-    final_col_headers.append("Basis " + str(count))
-    count += 1
+    # final_col_headers.append("Basis " + str(count))
+    # count += 1
     # print(v)
     # ax.plot(bin_lower_bounds, v, color="blue")
     # sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
@@ -222,8 +226,8 @@ for m in final_motifs:
     m = m.transpose().toarray()[0]
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
     final_arrays.append(m)
-    final_col_headers.append("Motif " + str(final_motif_indices[count]+1))
-    count += 1
+    # final_col_headers.append("Motif " + str(final_motif_indices[count]+1))
+    # count += 1
     # print(m)
     # ax.plot(bin_lower_bounds, m, color="green")
     # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
@@ -231,10 +235,13 @@ for m in final_motifs:
 
 # print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
-final_df = pd.DataFrame(final_arrays, final_col_headers).T
-final_df = final_df.astype(pd.SparseDtype("float", np.nan))
+output_sparse = scipy.sparse.csr_matrix(final_arrays)
+scipy.io.mmwrite("output.mtx", output_sparse, comment="First column is bins, next 5 are basis, and last 5 are motifs")
 
-final_df.to_csv("final_vectors.csv")
+# final_df = pd.DataFrame(final_arrays, final_col_headers).T
+# final_df = final_df.astype(pd.SparseDtype("float", np.nan))
+
+# final_df.to_csv("final_vectors.csv")
 
 
 
