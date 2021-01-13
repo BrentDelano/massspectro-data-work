@@ -8,7 +8,7 @@ import re
 import nimfa
 import glob
 import matplotlib
-# matplotlib.use('Agg') #for plotting w/out GUI - for use on server
+matplotlib.use('Agg') #for plotting w/out GUI - for use on server
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
@@ -202,6 +202,7 @@ print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(tim
 # print(np.shape(final_motifs))
 
 # ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
+ax_hist = graphSetup("Histogram", "Bin", "Frequency", [0,1400], [0,25000])
 
 start = time.time()
 
@@ -210,14 +211,13 @@ final_col_headers = ["Intensity Bins"]
 count = 1
 for v in final_basis:
     v = v.toarray()[0]
-    # v = np.asarray(v)
-    # v = v[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
     final_arrays.append(v)
     # final_col_headers.append("Basis " + str(count))
     # count += 1
     # print(v)
     # ax.plot(bin_lower_bounds, v, color="blue")
+    ax_hist.hist(v, bins=np.arange(0,1400,200), color = "blue")
     # sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
@@ -230,6 +230,7 @@ for m in final_motifs:
     # count += 1
     # print(m)
     # ax.plot(bin_lower_bounds, m, color="green")
+    ax_hist.hist(m, bins=np.arange(0,1400,200), color = "green")
     # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 
@@ -245,19 +246,19 @@ scipy.io.mmwrite("output.mtx", output_sparse, comment="First column is bins, nex
 
 
 
-# basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
-# motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
+basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
+motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
 
-# plt.legend(handles=[basis_patch, motif_patch])
+plt.legend(handles=[basis_patch, motif_patch])
 
 # savePlot()
 
 # if output_filename != None:
 #     output_pdf.close()
     
-# plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
+plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
 
-# plt.show()
+plt.show()
 
 """
 method = 0
