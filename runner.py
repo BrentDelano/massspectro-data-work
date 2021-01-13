@@ -251,10 +251,10 @@ motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
 
 plt.legend(handles=[basis_patch, motif_patch])
 
-# savePlot()
+savePlot()
 
-# if output_filename != None:
-#     output_pdf.close()
+if output_filename != None:
+    output_pdf.close()
     
 plt.gcf().canvas.mpl_connect('key_press_event', close_windows) #attaches keylistener to plt figure
 
