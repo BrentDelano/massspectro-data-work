@@ -14,7 +14,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 import time
 import scipy
+import sklearn
 from scipy import sparse
+from scipy import io
+import seaborn as sns
 start = time.time()
 
 filetype = "pdf" # "png" or "pdf"
@@ -60,7 +63,7 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
     plt.xticks(rotation='75')
     start, end = x_lim
     
-    # Percentage is 10% percent of the difference between the min and max, rounded. 
+    # Percentage is 5% percent of the difference between the min and max, rounded. 
     # This adds onto the end for extra space to make the GUI nice
     # It's also used to set the tick mark distance so its evenly spaced and scales based on the axis size
     percentage = round((end-start)*.05)
@@ -72,7 +75,7 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
     # set y-axis
     start, end = y_lim
 
-    # Percentage is 10% percent of the difference between the min and max, rounded. 
+    # Percentage is 5% percent of the difference between the min and max, rounded. 
     # This adds onto the end for extra space to make the GUI nicer
     # It's also used to set the tick mark distance so its evenly spaced and scales based on the axis size
     percentage = round((end-start)*.05)
@@ -87,6 +90,7 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
 
     #Object used for plotting
     return ax
+    
 range = np.concatenate(([0], np.arange(0.091,.2,.001)))
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
 temp_mgf = "temp.mgf"
@@ -107,6 +111,7 @@ output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 '''
 start = time.time()
 output_df = pd.read_csv("binned_data.csv")
+# output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
 print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
 
 start = time.time()
@@ -149,25 +154,28 @@ for file in all_files:
     motif_num = re.findall(r'.*(?:\D|^)(\d+)', file)[0] #gets last number (motif #) from string
     motif_dfs[int(motif_num)-1] = motif_vector # since the files were processed randomly, this puts it in the correct spot in the list
 print('It took {0:0.1f} seconds for processing motifs'.format(time.time() - start))
-
 euc_distances = []
 
 start = time.time()
 for vector in basis:
-    vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
+    # vector = vector.transpose() #transpose back into CSR format for Euc distance calcs
     basis_distances = []
     for motif in motif_dfs:
-        distance = scipy.sparse.linalg.norm(vector-motif)
-        basis_distances.append(distance)
+        dot = np.dot(vector, motif)
+        magnitude = scipy.sparse.linalg.norm(vector) * scipy.sparse.linalg.norm(motif)
+        distance = dot/magnitude #Manually compute cosine distance between vectors since libraries have certain nuances
+        basis_distances.append(distance.todense()[0,0])
     euc_distances.append(basis_distances)
 print('It took {0:0.1f} seconds to calculate distance matrix'.format(time.time() - start))
 
-print(euc_distances)
+# print(euc_distances)
 print(np.shape(euc_distances))
 start = time.time()
 k = 5 #number of min values to collect
 idx = np.argpartition(euc_distances, k, axis=None)[:k]
 row_size = np.shape(euc_distances)[1]
+final_basis_indices = []
+final_motif_indices = []
 final_basis = []
 final_motifs = []
 
@@ -177,8 +185,13 @@ for x in idx:
     # Therefore, below you need to divide+truncate and mod to get the i,j index for the original matrix
     basis_index = int(x/row_size)
     motif_index = x%row_size
+    # if(basis_index not in final_basis_indices):
     final_basis.append(basis[basis_index])
+    final_basis_indices.append(basis_index)
+    
+    # if(motif_index not in final_motif_indices):
     final_motifs.append(motif_dfs[motif_index])
+    final_motif_indices.append(motif_index)
 
     f.write("Motif " + str(motif_index+1) + "\n")
 
@@ -188,24 +201,50 @@ print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(tim
 # print(np.shape(final_basis))
 # print(np.shape(final_motifs))
 
-ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
+# ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
+ax_hist = graphSetup("Histogram", "Bin", "Frequency", [0,1400], [0,25000])
 
 start = time.time()
 
+final_arrays = [bin_lower_bounds]
+final_col_headers = ["Intensity Bins"]
+count = 1
 for v in final_basis:
-    v = v.transpose().toarray()
-    # v = np.asarray(v)
-    # v = v[0]
+    v = v.toarray()[0]
     v = v/np.max(v) * 100 #normalizes based on the largest number in the vector
-    ax.plot(bin_lower_bounds, v, color="blue")
+    final_arrays.append(v)
+    # final_col_headers.append("Basis " + str(count))
+    # count += 1
+    # print(v)
+    # ax.plot(bin_lower_bounds, v, color="blue")
+    ax_hist.hist(v, bins=np.arange(0,1400,200), color = "blue")
+    # sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
+count = 0
 for m in final_motifs:
-    m = m.toarray()
+    m = m.transpose().toarray()[0]
     m = m/np.max(m) * 100 #normalizes based on the largest number in the vector
-    ax.plot(bin_lower_bounds, m, color="green")
+    final_arrays.append(m)
+    # final_col_headers.append("Motif " + str(final_motif_indices[count]+1))
+    # count += 1
+    # print(m)
+    # ax.plot(bin_lower_bounds, m, color="green")
+    ax_hist.hist(m, bins=np.arange(0,1400,200), color = "green")
+    # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
-print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
+
+# print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
+
+output_sparse = scipy.sparse.csr_matrix(final_arrays)
+scipy.io.mmwrite("output.mtx", output_sparse, comment="First column is bins, next 5 are basis, and last 5 are motifs")
+
+# final_df = pd.DataFrame(final_arrays, final_col_headers).T
+# final_df = final_df.astype(pd.SparseDtype("float", np.nan))
+
+# final_df.to_csv("final_vectors.csv")
+
+
 
 basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
 motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
