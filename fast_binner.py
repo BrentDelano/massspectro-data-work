@@ -9,20 +9,22 @@ import pickle as pkl
 mgf_file = "data/nematode_symbionts.mgf"
 
 def filter_zero_cols(csr):
-    M = csr[:,csr.getnnz(0)>0]
-    return(csr)
+    keep = np.array(csr.sum(axis = 0) > 0).flatten()
+    csr = csr[:,keep]
+    return(csr, keep)
 
 def filter_zero_rows(csr):
-    csr = csr[csr.getnnz(1)>0]
-    return(csr)
+    keep = np.array(csr.sum(axis = 0) > 0).flatten()
+    csr = csr[keep]
+    return(csr, keep)
 
-def bin_sparse_dok(mgf_file, min_bin = 50, max_bin = 2000, bin_size = 0.01, verbose = False, remove_zero_sum_rows = True, remove_zero_sum_cols = True):
+def bin_sparse_dok(mgf_file, output_file = None, min_bin = 50, max_bin = 2000, bin_size = 0.01, verbose = False, remove_zero_sum_rows = True, remove_zero_sum_cols = True):
     start = time.time()
     bins = np.arange(min_bin, max_bin, bin_size)
 
 
     reader = mgf.IndexedMGF(mgf_file)
-    X = dok_matrix((len(reader.index), len(bins)), dtype=np.float32)
+    X = dok_matrix((len(bins), len(reader.index)), dtype=np.float32)
 
     scan_names = []
     for spectrum_index, spectrum in enumerate(reader):
@@ -30,21 +32,28 @@ def bin_sparse_dok(mgf_file, min_bin = 50, max_bin = 2000, bin_size = 0.01, verb
             continue
         for mz, intensity in zip(spectrum['m/z array'], spectrum['intensity array']):
             target_bin = math.floor((mz - min_bin)/bin_size)
-            X[ spectrum_index,target_bin] += intensity
+            X[target_bin, spectrum_index] += intensity
             scan_names.append(spectrum['params']['scans'])
 
     X = X.tocsr()
     X_orig_shape = X.shape
     if remove_zero_sum_rows:
-        X = filter_zero_rows(X)
+        print(X.shape)
+        X, row_names_filter = filter_zero_rows(X)
+        bins = [x for (x, v) in zip(bins, row_names_filter) if v]
+        print("Removed %s rows" % (X_orig_shape[0] - X.shape[0] )) if verbose else None
 
     if remove_zero_sum_cols:
-        X = filter_zero_cols(X)
+        X, col_names_filter = filter_zero_cols(X)
+        scan_names = [x for (x, v) in zip(scan_names, col_names_filter) if v]
+        print("Removed %s cols" % (X_orig_shape[1] - X.shape[1] )) if verbose else None
         
     if verbose:
-            print("Binned in %s seconds with dimensions %sx%s, %s nonzero entries (%s), removed %s rows" % (time.time()-start, len(reader.index), len(bins), X.count_nonzero(), X.count_nonzero()/(len(reader.index)*len(bins)), X_orig_shape[0] - X.shape[0]))
+            print("Binned in %s seconds with dimensions %sx%s, %s nonzero entries (%s)" % (time.time()-start, X.shape[0], X.shape[1], X.count_nonzero(), X.count_nonzero()/(len(reader.index)*len(bins))))
 
+    if outputfile is not None:
+        pkl.dump((X, bins, scan_names),open( output_file, "w"))
     return(X, bins, scan_names)
 
 
-X, bins, scan_names = bin_sparse_dok(mgf_file, verbose = True)
+X, bins, scan_names = bin_sparse_dok(mgf_file, verbose = True, output_file = "nematode_symbionts_matrix.pkl")
