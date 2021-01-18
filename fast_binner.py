@@ -6,7 +6,7 @@ import time
 import pickle as pkl
 
 
-mgf_file = "data/nematode_symbionts.mgf"
+#mgf_file = "data/nematode_symbionts.mgf"
 
 def filter_zero_cols(csr):
     keep = np.array(csr.sum(axis = 0) > 0).flatten()
@@ -52,8 +52,8 @@ def bin_sparse_dok(mgf_file, output_file = None, min_bin = 50, max_bin = 2000, b
             print("Binned in %s seconds with dimensions %sx%s, %s nonzero entries (%s)" % (time.time()-start, X.shape[0], X.shape[1], X.count_nonzero(), X.count_nonzero()/(len(reader.index)*len(bins))))
 
     if output_file is not None:
-        pkl.dump((X, bins, scan_names),open( output_file, "w"))
+        pkl.dump((X, bins, scan_names),open( output_file, "wb"))
     return(X, bins, scan_names)
 
 
-X, bins, scan_names = bin_sparse_dok(mgf_file, verbose = True, output_file = "nematode_symbionts_matrix.pkl")
+#X, bins, scan_names = bin_sparse_dok(mgf_file, verbose = True, output_file = "nematode_symbionts_matrix.pkl")
