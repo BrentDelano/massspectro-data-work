@@ -20,6 +20,7 @@ from scipy import io
 import seaborn as sns
 import fast_binner
 import umap
+import umap.plot
 start = time.time()
 
 filetype = "pdf" # "png" or "pdf"
