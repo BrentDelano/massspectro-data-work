@@ -134,7 +134,7 @@ output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 # print('It took {0:0.1f} seconds to post-process csv'.format(time.time() - start))
 
 start = time.time()
-CSR_data, bin_lower_bounds, scan_names = fast_binner.bin_sparse_dok(mgf_data, min_bin=94.9025, max_bin=1372.05, bin_size=bin_size, verbose = True)
+CSR_data, bin_lower_bounds, scan_names = fast_binner.bin_sparse_dok(mgf_data, min_bin=94.9025, bin_size=bin_size, verbose = True)
 print('It took {0:0.1f} seconds to create CSR matrix from MGF data'.format(time.time() - start))
 
 start = time.time()
