@@ -18,6 +18,8 @@ import sklearn
 from scipy import sparse
 from scipy import io
 import seaborn as sns
+import fast_binner
+import umap
 start = time.time()
 
 filetype = "pdf" # "png" or "pdf"
@@ -109,25 +111,29 @@ for v,c in enumerate(low_b):
     low_b[v] = low_b[v].replace(',', '_')
 output_df = pd.DataFrame(data=new_peaks, columns=low_b, index=data[2])
 '''
-start = time.time()
-output_df = pd.read_csv("binned_data.csv")
+
+# start = time.time()
+
+# output_df = pd.read_csv("binned_data.csv")
 # output_df = pd.read_csv("/Users/arjun/Documents/UCSD/BioInformatics_Lab/massspectro-cluster-searching/data/agp3k_data.csv")
-print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
+# print('It took {0:0.1f} seconds to read csv'.format(time.time() - start))
 
-start = time.time()
-#Post filtration process
-input_data = output_df.drop(output_df.columns[0], axis=1) #Trims the data so the first column isn't included
+# start = time.time()
+# #Post filtration process
+# input_data = output_df.drop(output_df.columns[0], axis=1) #Trims the data so the first column isn't included
 
-bin_lower_bounds = []
-# Loops through each column header in the .csv file to get the lower bound for plotting
-for column in input_data.columns:
-    bound = re.findall(r"[-+]?\d*\.\d+|\d+", column) # Parses the float bound from the column header
-    bin_lower_bounds.append(float(bound[0]))
+# bin_lower_bounds = []
+# # Loops through each column header in the .csv file to get the lower bound for plotting
+# for column in input_data.columns:
+#     bound = re.findall(r"[-+]?\d*\.\d+|\d+", column) # Parses the float bound from the column header
+#     bin_lower_bounds.append(float(bound[0]))
 
-# .T below transposes it so that the bin numbers are the rows and it's vectors of spectra intensity
-input_data = input_data.T.astype(pd.SparseDtype("float", np.nan)) #converts to a Sparse DF
-CSR_data = input_data.sparse.to_coo().tocsr()
-print('It took {0:0.1f} seconds to post-process csv'.format(time.time() - start))
+# # .T below transposes it so that the bin numbers are the rows and it's vectors of spectra intensity
+# input_data = input_data.T.astype(pd.SparseDtype("float", np.nan)) #converts to a Sparse DF
+# CSR_data = input_data.sparse.to_coo().tocsr()
+# print('It took {0:0.1f} seconds to post-process csv'.format(time.time() - start))
+
+CSR_data, bin_lower_bounds, scan_names = fast_binner.bin_sparse_dok(mgf_data, min_bin=94.9025, max_bin=1372.05, bin_size=bin_size, verbose = True)
 
 start = time.time()
 nmf_model = nimfa.Nmf(CSR_data, rank=30)
@@ -202,7 +208,7 @@ print('It took {0:0.1f} seconds to organize final basis/motif arrays'.format(tim
 # print(np.shape(final_motifs))
 
 # ax = graphSetup("MassSpectra NMF Basis Vector vs Motif Plot", "Bin Lower Bounds [m/z]", r"$Intensity\,[\%]$", [np.min(bin_lower_bounds), np.max(bin_lower_bounds)], [0,100])
-ax_hist = graphSetup("Histogram", "Bin", "Frequency", [0,1400], [0,25000])
+# ax_hist = graphSetup("Histogram", "Bin", "Frequency", [0,1400], [0,25000])
 
 start = time.time()
 
@@ -217,7 +223,6 @@ for v in final_basis:
     # count += 1
     # print(v)
     # ax.plot(bin_lower_bounds, v, color="blue")
-    ax_hist.hist(v, bins=np.arange(0,1400,200), color = "blue")
     # sns.barplot(x=np.arange(0, np.size(v),1), y=v, color="blue", ax=ax)
     # ax.bar(bin_lower_bounds, v, color="blue") #Bar graph not displaying values properly
 
@@ -230,14 +235,13 @@ for m in final_motifs:
     # count += 1
     # print(m)
     # ax.plot(bin_lower_bounds, m, color="green")
-    ax_hist.hist(m, bins=np.arange(0,1400,200), color = "green")
     # sns.barplot(x=bin_lower_bounds, y=m, color="green", ax=ax)
     # ax.bar(bin_lower_bounds, m, color="green") #Bar graph not displaying values properly
 
 # print('It took {0:0.1f} seconds for graphs'.format(time.time() - start))
 
-output_sparse = scipy.sparse.csr_matrix(final_arrays)
-scipy.io.mmwrite("output.mtx", output_sparse, comment="First column is bins, next 5 are basis, and last 5 are motifs")
+# output_sparse = scipy.sparse.csr_matrix(final_arrays)
+# scipy.io.mmwrite("output.mtx", output_sparse, comment="First column is bins, next 5 are basis, and last 5 are motifs")
 
 # final_df = pd.DataFrame(final_arrays, final_col_headers).T
 # final_df = final_df.astype(pd.SparseDtype("float", np.nan))
@@ -246,10 +250,14 @@ scipy.io.mmwrite("output.mtx", output_sparse, comment="First column is bins, nex
 
 
 
-basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
-motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
+# basis_patch = mpatches.Patch(color='blue', label='Basis Vectors')
+# motif_patch = mpatches.Patch(color='green', label='MS2LDA Motifs')
 
-plt.legend(handles=[basis_patch, motif_patch])
+# plt.legend(handles=[basis_patch, motif_patch])
+
+mapper = umap.UMAP().fit(CSR_data)
+umap.plot.points(mapper, values=np.arange(CSR_data.shape[0]))
+
 
 savePlot()
 
