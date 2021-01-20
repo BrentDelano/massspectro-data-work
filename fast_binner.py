@@ -28,9 +28,10 @@ def bin_sparse_dok(mgf_file, output_file = None, min_bin = 50, max_bin = 2000, b
 
     scan_names = []
     for spectrum_index, spectrum in enumerate(reader):
+        scan_names.append(spectrum['params']['scans'])
         if len(spectrum['m/z array']) == 0:
             continue
-        scan_names.append(spectrum['params']['scans'])
+
         for mz, intensity in zip(spectrum['m/z array'], spectrum['intensity array']):
             target_bin = math.floor((mz - min_bin)/bin_size)
             X[target_bin, spectrum_index] += intensity
@@ -68,6 +69,6 @@ def row_filter_intensity(X, bin_names, threshold = 1/1000):
     return((X, bin_names))
     
 #X, bins, scan_names = bin_sparse_dok("data/nematode_symbionts.mgf", verbose = True, output_file = "nematode_symbionts_matrix.pkl")
-#X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl")
-X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl", remove_zero_sum_cols = False)
+X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl")
+#X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl", remove_zero_sum_cols = True)
 
