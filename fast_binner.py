@@ -69,6 +69,6 @@ def row_filter_intensity(X, bin_names, threshold = 1/1000):
     return((X, bin_names))
     
 #X, bins, scan_names = bin_sparse_dok("data/nematode_symbionts.mgf", verbose = True, output_file = "nematode_symbionts_matrix.pkl")
-X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl")
+# X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl")
 #X, bins, scan_names = bin_sparse_dok("data/agp3k.mgf", verbose = True, output_file = "agp3k.mgf_matrix.pkl", remove_zero_sum_cols = True)
 
