@@ -23,6 +23,8 @@ for x in intensity_range:
     input_data = input_data.T
     input_data,bins = fast_binner.row_filter_intensity(input_data,bins, threshold=x)
     nmf_model = nimfa.Nmf(input_data)
+
+    start = time.time()
     ranks = nmf_model.estimate_rank(rank_range, n_run=1, what=output_params)
 
     f = open(output, "a")
@@ -32,6 +34,8 @@ for x in intensity_range:
         sparseness = measures["sparseness"]
         rss = measures["rss"]
         evar = measures["evar"]
-        f.write(str(x) + "," + str(input_data.shape[0])+","str(t) + "," + str(sparseness[0]) + "," + str(sparseness[1]) + "," + str(rss) + "," + str(evar) + "\n")
+        f.write(str(x) + "," + str(input_data.shape[0])+","+ str(t) + "," + str(sparseness[0]) + "," + str(sparseness[1]) + "," + str(rss) + "," + str(evar) + "\n")
 
     f.close()
+    end = time.time()
+    print(end-start)
