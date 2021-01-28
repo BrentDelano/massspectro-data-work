@@ -13,7 +13,7 @@ filetype = "png" # "png" or "pdf"
 figdpi = 200 #int: DPI of the PDF output file
 fig = None
 output_pdf = None
-output_filename = "plot"
+output_filename = "std_dev"
 
 #Saves/Appends the plot to the predetermined PDF file
 def savePlot():
@@ -83,8 +83,8 @@ variance = squared.mean() - (mean**2)
 std_dev = math.sqrt(variance)
 output = ((input_data).toarray() - mean)/std_dev
 
-ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviation (Z-Scores)", "Frequency", [np.min(output), np.max(output)], [0, 1000])
+ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviation (Z-Scores)", "Frequency", [np.min(output), np.max(output)], [0, 100])
 
-ax.hist(std_dev)
+ax.hist(output, bins = bins)
 
 savePlot()
