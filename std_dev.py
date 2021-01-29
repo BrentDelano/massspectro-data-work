@@ -85,7 +85,7 @@ for row in input_data:
     variance = squared.mean() - (mean**2)
     std_devs.append(math.sqrt(variance))
 
-ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviation (Z-Scores)", "Frequency", [np.min(output), np.max(output)], [0, 100])
+ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviation (Z-Scores)", "Frequency", [np.min(std_devs), np.max(std_devs)], [0, 100])
 
 ax.hist(std_devs, bins = bins)
 
