@@ -75,16 +75,18 @@ bin_size = 0.01
 
 input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
 input_data = input_data.T
-mean = input_data.mean()
-squared = input_data.copy()
-squared.data **= 2
+input_data,bins = fast_binner.row_filter_intensity(input_data,bins, threshold=0)
+std_devs = []
+for row in input_data:
+    mean = row.mean()
+    squared = row.copy()
+    squared.data **= 2
 
-variance = squared.mean() - (mean**2)
-std_dev = math.sqrt(variance)
-output = ((input_data).toarray() - mean)/std_dev
+    variance = squared.mean() - (mean**2)
+    std_devs.append(math.sqrt(variance))
 
 ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviation (Z-Scores)", "Frequency", [np.min(output), np.max(output)], [0, 100])
 
-ax.hist(output, bins = bins)
+ax.hist(std_devs, bins = bins)
 
 savePlot()
