@@ -26,21 +26,17 @@ def savePlot():
 def graphSetup(title, x_label, y_label, x_lim, y_lim):
     fig = plt.figure(title)
     ax = fig.add_subplot()
-
     # remove top and right axis
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.get_xaxis().tick_bottom()
     ax.get_yaxis().tick_left()
-
     # label axes
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
-
     # set x-axis
     plt.xticks(rotation='75')
     start, end = x_lim
-    
     # Percentage is 5% percent of the difference between the min and max, rounded. 
     # This adds onto the end for extra space to make the GUI nice
     # It's also used to set the tick mark distance so its evenly spaced and scales based on the axis size
@@ -49,10 +45,8 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
     end = end + percentage
     ax.set_xlim(start, end)
     ax.xaxis.set_ticks(np.arange(start, end, percentage))
-
     # set y-axis
     start, end = y_lim
-
     # Percentage is 5% percent of the difference between the min and max, rounded. 
     # This adds onto the end for extra space to make the GUI nicer
     # It's also used to set the tick mark distance so its evenly spaced and scales based on the axis size
@@ -61,11 +55,9 @@ def graphSetup(title, x_label, y_label, x_lim, y_lim):
     end = end + percentage
     ax.set_ylim(start, end)
     ax.yaxis.set_ticks(np.arange(start, end, percentage))
-
     # set grid
     plt.grid(True, axis="y", color='black', linestyle=':', linewidth=0.1)
     plt.tight_layout()
-
     #Object used for plotting
     return ax
 
@@ -74,19 +66,25 @@ mgf_data = sys.path[0] + "/data/agp3k.mgf"
 bin_size = 0.01
 
 input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
-input_data = input_data.T
-input_data,bins = fast_binner.row_filter_intensity(input_data,bins, threshold=0)
+# input_data,bins = fast_binner.row_filter_intensity(input_data,bins, threshold=0)
 std_devs = []
 for row in input_data:
     mean = row.mean()
     squared = row.copy()
     squared.data **= 2
-
     variance = squared.mean() - (mean**2)
-    std_devs.append(math.sqrt(variance))
+    std_devs.append(math.log10(math.sqrt(variance)))
 
-ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviation (Z-Scores)", "Frequency", [np.min(std_devs), np.max(std_devs)], [0, 100])
+values, counts = np.unique(std_devs, return_counts=True)
 
-ax.hist(std_devs, bins = bins)
+output = [values, counts]
+output = np.transpose(output)
+df = pd.DataFrame(output, index=None, columns=["Log10 SD Values", "Frequency"])
+df.to_csv("sd_values.csv")
+
+ax = graphSetup("Standard Deviation Histogram of Agp3k", "Standard Deviations", "Frequency", [np.min(std_devs), np.max(std_devs)], [0, np.max(counts)])
+
+
+ax.hist(std_devs, bins = values)
 
 savePlot()
