@@ -22,7 +22,7 @@ f.close()
 sd_range = [10,50,100]
 
 for threshold in sd_range:
-
+    start = time.time()
     input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
 
     for row in input_data:
@@ -38,5 +38,9 @@ for threshold in sd_range:
     evar = nmf_model().evar()
 
     f = open(output, "a")
-    f.write(str(bin_size) + "," str(input_data.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) +\n")
+    f.write(str(bin_size) + "," + str(input_data.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) +"\n")
     f.close()
+
+    end = time.time()
+    print(end-start)
+    print()
