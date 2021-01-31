@@ -33,13 +33,15 @@ for threshold in sd_range:
         variance = squared.mean() - (mean**2)
         std_dev = math.sqrt(variance)
         if std_dev <= threshold:
-            filtered_data.append(row)
+            filtered_data.append(row.toarray()[0])
     
-    nmf_model = nimfa.Nmf(filtered_data, rank=rank)
+    filtered_sparse = scipy.sparse.csr_matrix(filtered_data)
+    
+    nmf_model = nimfa.Nmf(filtered_sparse, rank=rank)
     evar = nmf_model().evar()
 
     f = open(output, "a")
-    f.write(str(bin_size) + "," + str(input_data.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) +"\n")
+    f.write(str(bin_size) + "," + str(filtered_sparse.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) +"\n")
     f.close()
 
     end = time.time()
