@@ -25,16 +25,17 @@ for threshold in sd_range:
     start = time.time()
     input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
 
+    filtered_data = []
     for row in input_data:
         mean = row.mean()
         squared = row.copy()
         squared.data **= 2
         variance = squared.mean() - (mean**2)
         std_dev = math.sqrt(variance)
-        if std_dev > threshold:
-            input_data.remove(row)
+        if std_dev <= threshold:
+            filtered_data.append(row)
     
-    nmf_model = nimfa.Nmf(input_data, rank=rank)
+    nmf_model = nimfa.Nmf(filtered_data, rank=rank)
     evar = nmf_model().evar()
 
     f = open(output, "a")
