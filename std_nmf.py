@@ -38,7 +38,7 @@ for threshold in sd_range:
     filtered_sparse = scipy.sparse.csr_matrix(filtered_data)
     
     nmf_model = nimfa.Nmf(filtered_sparse, rank=rank)
-    evar = nmf_model().evar()
+    evar = nmf_model.evar()
 
     f = open(output, "a")
     f.write(str(bin_size) + "," + str(filtered_sparse.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) +"\n")
