@@ -28,9 +28,9 @@ def bin_sparse_dok(mgf_file, output_file = None, min_bin = 50, max_bin = 2000, b
 
     scan_names = []
     for spectrum_index, spectrum in enumerate(reader):
+        scan_names.append(spectrum['params']['scans'])
         if spectrum['params']['pepmass'][0] > 850:
             continue
-        scan_names.append(spectrum['params']['scans'])
         if len(spectrum['m/z array']) == 0:
             continue
 
