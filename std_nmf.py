@@ -19,7 +19,7 @@ f = open(output, "w")
 f.write("Bin Size,Num Rows,Standard Dev,Rank,EVar\n")
 f.close()
 
-sd_range = [10,50,100]
+sd_range = [10,50,100,500,1000]
 
 for threshold in sd_range:
     start = time.time()
