@@ -5,8 +5,9 @@ import time
 import fast_binner
 
 mgf_data = sys.path[0] + "/data/concatenated_data.mgf"
+bin_size = 0.01
 
-input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
+input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size)
 
 start = time.time()
 nmf_model = nimfa.Nmf(input_data)
