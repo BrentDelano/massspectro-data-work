@@ -4,7 +4,7 @@ from scipy.sparse import dok_matrix
 import math
 import time
 import pickle as pkl
-
+import os
 
 def filter_zero_cols(csr):
     keep = np.array(csr.sum(axis = 0) > 0).flatten()
@@ -16,29 +16,38 @@ def filter_zero_rows(csr):
     csr = csr[keep]
     return(csr, keep)
 
-def bin_sparse_dok(mgf_file, output_file = None, min_bin = 50, max_bin = 2000, bin_size = 0.01, verbose = False, remove_zero_sum_rows = True, remove_zero_sum_cols = True):
+def bin_sparse_dok(mgf_file=None, mgf_files=None, spectra_watchlist = None, output_file = None, min_bin = 50, max_bin = 2000, bin_size = 0.01, verbose = False, remove_zero_sum_rows = True, remove_zero_sum_cols = True):
     start = time.time()
     bins = np.arange(min_bin, max_bin, bin_size)
 
+    if mgf_file != None:
+        mgf_files = [mgf_file]
+    
+    n_scans = 0
+    for file in mgf_files:
+        reader0 = mgf.MGF(file)
+        n_scans += len([x for x in reader0])
 
-    reader0 = mgf.MGF(mgf_file)
-    reader = mgf.MGF(mgf_file)
-    n_scans = len([x for x in reader0])
     X = dok_matrix((len(bins), n_scans), dtype=np.float32)
-
     scan_names = []
-    for spectrum_index, spectrum in enumerate(reader):
-        scan_names.append(spectrum['params']['scans'])
-        if spectrum['params']['pepmass'][0] > 850:
-            continue
-        if len(spectrum['m/z array']) == 0:
-            continue
+    for file in mgf_files:
+        reader = mgf.MGF(file)
+        base = os.path.basename(file)
+        for spectrum_index, spectrum in enumerate(reader):
+            scan_names.append(os.path.splitext(base)[0] + "_" + spectrum['params']['scans'])
+            if spectrum['params']['pepmass'][0] > 850:
+                continue
+            if len(spectrum['m/z array']) == 0:
+                continue
 
-        for mz, intensity in zip(spectrum['m/z array'], spectrum['intensity array']):
-            target_bin = math.floor((mz - min_bin)/bin_size)
-            X[target_bin, spectrum_index] += intensity
-
-            
+            for mz, intensity in zip(spectrum['m/z array'], spectrum['intensity array']):
+                target_bin = math.floor((mz - min_bin)/bin_size)
+                if base == "agp3k.mgf":
+                    intensity *= 2
+                if spectra_watchlist != None and int(spectrum['params']['scans']) in spectra_watchlist:
+                    intensity *= 10
+                
+                X[target_bin, spectrum_index] += intensity
 
     X = X.tocsr()
     X_orig_shape = X.shape
