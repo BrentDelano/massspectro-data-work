@@ -44,7 +44,7 @@ def bin_sparse_dok(mgf_file=None, mgf_files=None, spectra_watchlist = None, outp
                 target_bin = math.floor((mz - min_bin)/bin_size)
                 if base == "agp3k.mgf":
                     intensity *= 2
-                if spectra_watchlist != None and int(spectrum['params']['scans']) in spectra_watchlist:
+                if spectra_watchlist.all() != None and int(spectrum['params']['scans']) in spectra_watchlist:
                     intensity *= 10
                 
                 X[target_bin, spectrum_index] += intensity
