@@ -10,7 +10,7 @@ matplotlib.use('Agg') #for plotting w/out GUI - for use on server
 import matplotlib.pyplot as plt
 import nimfa
 
-mgf_data = sys.path[0] + "/data/agp3k.mgf"
+mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
 bin_size = 0.1
 rank = 30
 
