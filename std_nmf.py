@@ -11,17 +11,19 @@ import matplotlib.pyplot as plt
 import nimfa
 
 mgf_data = sys.path[0] + "/data/agp3k.mgf"
-bin_size = 0.01
+bin_size = 0.1
 rank = 30
 
 output = "output_measurements.csv"
 f = open(output, "w")
-f.write("Bin Size,Num Rows,Standard Dev,Rank,EVar\n")
+f.write("Bin Size,Num Rows,Standard Dev,Rank,EVar,Seed\n")
 f.close()
 
-sd_range = [10,50,100,500,1000]
+# sd_range = [10,50,100,500,1000]
+range = np.arange(0,100,1)
 
-for threshold in sd_range:
+for x in range:
+    threshold = 100
     start = time.time()
     input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
 
@@ -38,10 +40,12 @@ for threshold in sd_range:
     filtered_sparse = scipy.sparse.csr_matrix(filtered_data)
     
     nmf_model = nimfa.Nmf(filtered_sparse, rank=rank)
-    evar = nmf_model().fit.evar()
+    model = nmf_model()
+    evar = model.fit.evar()
+    seed = model.fit.seed
 
     f = open(output, "a")
-    f.write(str(bin_size) + "," + str(filtered_sparse.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) +"\n")
+    f.write(str(bin_size) + "," + str(filtered_sparse.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) + "," + str(seed) +"\n")
     f.close()
 
     end = time.time()
