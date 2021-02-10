@@ -5,9 +5,6 @@ import time
 import scipy.sparse
 import math
 import fast_binner
-import matplotlib
-matplotlib.use('Agg') #for plotting w/out GUI - for use on server
-import matplotlib.pyplot as plt
 import nimfa
 
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
@@ -16,7 +13,7 @@ rank = 30
 
 output = "output_measurements.csv"
 f = open(output, "w")
-f.write("Bin Size,Num Rows,Standard Dev,Rank,EVar,Seed\n")
+f.write("Bin Size,Num Rows,Standard Dev,Rank,EVar\n")
 f.close()
 
 # sd_range = [10,50,100,500,1000]
@@ -25,7 +22,7 @@ range = np.arange(0,100,1)
 for x in range:
     threshold = 100
     start = time.time()
-    input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size, output_file = "agp3k.mgf_matrix.pkl")
+    input_data, bins, scan_names = fast_binner.bin_sparse_dok(mgf_data, verbose = True, bin_size = bin_size)
 
     filtered_data = []
     for row in input_data:
@@ -42,10 +39,9 @@ for x in range:
     nmf_model = nimfa.Nmf(filtered_sparse, rank=rank)
     model = nmf_model()
     evar = model.fit.evar()
-    seed = model.fit.seed
 
     f = open(output, "a")
-    f.write(str(bin_size) + "," + str(filtered_sparse.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) + "," + str(seed) +"\n")
+    f.write(str(bin_size) + "," + str(filtered_sparse.shape[0])+"," + str(threshold) + "," + str(rank) + "," + str(evar) + "\n")
     f.close()
 
     end = time.time()
