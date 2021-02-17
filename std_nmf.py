@@ -8,7 +8,7 @@ import fast_binner
 import nimfa
 
 mgf_data = sys.path[0] + "/data/nematode_symbionts.mgf"
-bin_size = 0.1
+bin_size = 0.01
 rank = 30
 
 output = "output_measurements.csv"
@@ -36,7 +36,7 @@ for x in range:
     
     filtered_sparse = scipy.sparse.csr_matrix(filtered_data)
     
-    nmf_model = nimfa.Lsmf(filtered_sparse, rank=rank)
+    nmf_model = nimfa.Lsnmf(filtered_sparse, rank=rank)
     model = nmf_model()
     evar = model.fit.evar()
 
