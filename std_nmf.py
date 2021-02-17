@@ -17,7 +17,7 @@ f.write("Bin Size,Num Rows,Standard Dev,Rank,EVar\n")
 f.close()
 
 # sd_range = [10,50,100,500,1000]
-range = np.arange(0,100,1)
+range = np.arange(0,20,1)
 
 for x in range:
     threshold = 100
@@ -36,7 +36,7 @@ for x in range:
     
     filtered_sparse = scipy.sparse.csr_matrix(filtered_data)
     
-    nmf_model = nimfa.Nmf(filtered_sparse, rank=rank)
+    nmf_model = nimfa.Lsmf(filtered_sparse, rank=rank)
     model = nmf_model()
     evar = model.fit.evar()
 
