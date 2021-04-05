@@ -32,7 +32,7 @@ CSR_data, bin_lower_bounds, scan_names = fast_binner.bin_sparse_dok(mgf_data, bi
 
 nmf_model = nimfa.Cnmf(CSR_data, rank=30)
 model = nmf_model()
-K = model.K
+K = nmf_model.self.K
 
 mapper = umap.UMAP().fit(CSR_data.T)
 
